@@ -1,0 +1,9 @@
+# List files or directories to ignore. See .gitignore syntax.
+package.xml
+
+# LWC configuration files
+**/jsconfig.json
+**/.eslintrc.json
+
+# LWC Jest
+**/__tests__/**

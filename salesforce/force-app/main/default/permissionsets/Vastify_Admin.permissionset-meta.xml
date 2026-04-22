@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>Vastify Admin</label>
+    <description>Full access to all Vastify custom objects, fields, tabs, and Apex.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+
+    <!-- Object permissions -->
+    <objectPermissions>
+        <object>External_File__c</object>
+        <allowCreate>true</allowCreate>
+        <allowRead>true</allowRead>
+        <allowEdit>true</allowEdit>
+        <allowDelete>true</allowDelete>
+        <modifyAllRecords>true</modifyAllRecords>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+    <objectPermissions>
+        <object>Interaction__c</object>
+        <allowCreate>true</allowCreate>
+        <allowRead>true</allowRead>
+        <allowEdit>true</allowEdit>
+        <allowDelete>true</allowDelete>
+        <modifyAllRecords>true</modifyAllRecords>
+        <viewAllRecords>true</viewAllRecords>
+    </objectPermissions>
+
+    <!-- Field-level access -->
+    <fieldPermissions><field>External_File__c.Backend__c</field><editable>true</editable><readable>true</readable></fieldPermissions>
+    <fieldPermissions><field>External_File__c.Content_Document_Id__c</field><editable>true</editable><readable>true</readable></fieldPermissions>
+    <fieldPermissions><field>External_File__c.Object_Key__c</field><editable>true</editable><readable>true</readable></fieldPermissions>
+    <fieldPermissions><field>External_File__c.Original_ContentVersion_Id__c</field><editable>true</editable><readable>true</readable></fieldPermissions>
+    <fieldPermissions><field>External_File__c.Original_Name__c</field><editable>true</editable><readable>true</readable></fieldPermissions>
+    <fieldPermissions><field>External_File__c.Presigned_Expires_At__c</field><editable>true</editable><readable>true</readable></fieldPermissions>
+    <fieldPermissions><field>External_File__c.Presigned_Url__c</field><editable>true</editable><readable>true</readable></fieldPermissions>
+    <fieldPermissions><field>External_File__c.Size_Bytes__c</field><editable>true</editable><readable>true</readable></fieldPermissions>
+    <fieldPermissions><field>External_File__c.Storage_Class__c</field><editable>true</editable><readable>true</readable></fieldPermissions>
+    <fieldPermissions><field>External_File__c.Vastify_File_Id__c</field><editable>true</editable><readable>true</readable></fieldPermissions>
+
+    <fieldPermissions><field>Interaction__c.Account__c</field><editable>true</editable><readable>true</readable></fieldPermissions>
+    <fieldPermissions><field>Interaction__c.Channel__c</field><editable>true</editable><readable>true</readable></fieldPermissions>
+    <fieldPermissions><field>Interaction__c.Contact__c</field><editable>true</editable><readable>true</readable></fieldPermissions>
+    <fieldPermissions><field>Interaction__c.Payload__c</field><editable>true</editable><readable>true</readable></fieldPermissions>
+    <fieldPermissions><field>Interaction__c.Subject__c</field><editable>true</editable><readable>true</readable></fieldPermissions>
+    <fieldPermissions><field>Interaction__c.Timestamp__c</field><editable>true</editable><readable>true</readable></fieldPermissions>
+    <fieldPermissions><field>Interaction__c.Type__c</field><editable>true</editable><readable>true</readable></fieldPermissions>
+
+
+    <!-- Tabs -->
+    <tabSettings><tab>External_File__c</tab><visibility>Visible</visibility></tabSettings>
+    <tabSettings><tab>Interaction__c</tab><visibility>Visible</visibility></tabSettings>
+    <tabSettings><tab>Vastify_Interaction__x</tab><visibility>Visible</visibility></tabSettings>
+    <tabSettings><tab>ArchivedInteraction__x</tab><visibility>Visible</visibility></tabSettings>
+
+    <!-- Apex class access -->
+    <classAccesses><apexClass>ArchiveNowController</apexClass><enabled>true</enabled></classAccesses>
+    <classAccesses><apexClass>FileOffloadQueueable</apexClass><enabled>true</enabled></classAccesses>
+    <classAccesses><apexClass>InteractionArchiverQueueable</apexClass><enabled>true</enabled></classAccesses>
+    <classAccesses><apexClass>InteractionArchiverSchedulable</apexClass><enabled>true</enabled></classAccesses>
+    <classAccesses><apexClass>VastifyCallout</apexClass><enabled>true</enabled></classAccesses>
+
+    <!-- Application -->
+    <applicationVisibilities><application>Vastify</application><visible>true</visible></applicationVisibilities>
+</PermissionSet>

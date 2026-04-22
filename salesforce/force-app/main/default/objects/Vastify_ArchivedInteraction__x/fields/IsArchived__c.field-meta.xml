@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>IsArchived__c</fullName>
+    <label>Is Archived</label>
+    <type>Checkbox</type>
+    <defaultValue>true</defaultValue>
+    <externalDeveloperName>IsArchived</externalDeveloperName>
+    <isFilteringDisabled>false</isFilteringDisabled>
+    <isSortingDisabled>false</isSortingDisabled>
+</CustomField>

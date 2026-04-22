@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RemoteSiteSetting xmlns="http://soap.sforce.com/2006/04/metadata">
+    <disableProtocolSecurity>false</disableProtocolSecurity>
+    <isActive>true</isActive>
+    <url>https://REPLACE-ME.ngrok-free.app</url>
+    <description>Vastify middleware (update to match Vastify_Setting__mdt.Default.Api_Url__c)</description>
+</RemoteSiteSetting>

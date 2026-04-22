@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Type__c</fullName>
+    <label>Type</label>
+    <type>Text</type>
+    <length>40</length>
+    <externalDeveloperName>Type</externalDeveloperName>
+    <isFilteringDisabled>false</isFilteringDisabled>
+    <isSortingDisabled>false</isSortingDisabled>
+</CustomField>
