@@ -19,6 +19,8 @@ export interface AppConfig {
   sfClientSecret: string;
   hsClientId: string;
   hsClientSecret: string;
+  jwtSecret: string;
+  sfRedirectUri: string;
 }
 
 function bool(key: string, fallback = false): boolean {
@@ -86,5 +88,7 @@ export function loadConfig(): AppConfig {
     sfClientSecret: str('SF_CLIENT_SECRET', ''),
     hsClientId: str('HS_CLIENT_ID', ''),
     hsClientSecret: str('HS_CLIENT_SECRET', ''),
+    jwtSecret: str('JWT_SECRET', 'dev-secret-change-me-in-production-min-32-chars'),
+    sfRedirectUri: str('SF_REDIRECT_URI', 'http://localhost:3000/auth/salesforce/callback'),
   };
 }
