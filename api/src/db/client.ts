@@ -32,11 +32,15 @@ function runAlterMigrations(conn: Database): void {
     'ALTER TABLE tenants ADD COLUMN provisioned_at INTEGER',
   ];
   for (const sql of alters) {
-    try { conn.exec(sql); } catch { /* column already exists */ }
+    try {
+      conn.exec(sql);
+    } catch (err: unknown) {
+      if (!(err instanceof Error && err.message.includes('duplicate column name'))) {
+        throw err;
+      }
+    }
   }
-  try {
-    conn.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_tenants_sf_org_id ON tenants(sf_org_id)');
-  } catch { /* index already exists */ }
+  conn.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_tenants_sf_org_id ON tenants(sf_org_id)');
 }
 
 export function closeDb(): void {
