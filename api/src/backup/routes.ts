@@ -7,8 +7,11 @@ import { loadConfig } from '../config.js';
 import { createBackupRepo } from './repo.js';
 import { CredentialVault } from './credential-vault.js';
 import { GitSync } from './git-sync.js';
-import { BackupEngine } from './backup-engine.js';
-import type { ConnectedOrg, BackupScope, Snapshot, CrmType } from './types.js';
+import { BackupEngine, createCrmAdapter } from './backup-engine.js';
+import { DiffEngine } from './diff-engine.js';
+import { DiffPlanStore } from './diff-plan-store.js';
+import { RestoreExecutor } from './restore-executor.js';
+import type { ConnectedOrg, BackupScope, Snapshot, CrmType, DiffPlan, RestoreJob, RestoreJobMode } from './types.js';
 
 const routes = new Hono();
 
@@ -18,6 +21,8 @@ routes.use('*', requireApiKey);
 let _repo: ReturnType<typeof createBackupRepo> | undefined;
 let _vault: CredentialVault | undefined;
 let _gitSync: GitSync | undefined;
+let _diffPlanStore: DiffPlanStore | undefined;
+let _restoreExecutor: RestoreExecutor | undefined;
 
 function getRepo() {
   if (!_repo) _repo = createBackupRepo(getDb());
@@ -47,16 +52,30 @@ function getGitSync() {
   return _gitSync;
 }
 
-function getEngine(): BackupEngine {
+function getBackend() {
   const backends = getBackends();
   const backend = backends.values().next().value as import('../object/backend.js').ObjectBackend | undefined;
   if (!backend) throw new Error('No storage backend configured');
+  return backend;
+}
+
+function getEngine(): BackupEngine {
   return new BackupEngine({
     repo: getRepo(),
     vault: getVault(),
     gitSync: getGitSync(),
-    backend,
+    backend: getBackend(),
   });
+}
+
+function getDiffPlanStore() {
+  if (!_diffPlanStore) _diffPlanStore = new DiffPlanStore(getBackend());
+  return _diffPlanStore;
+}
+
+function getRestoreExecutor() {
+  if (!_restoreExecutor) _restoreExecutor = new RestoreExecutor();
+  return _restoreExecutor;
 }
 
 // ─── Connected Orgs ───────────────────────────────────────────────────────────
@@ -210,6 +229,140 @@ routes.post('/snapshots', async (c) => {
   });
 
   return c.json({ snapshotId }, 202);
+});
+
+// ─── Diff ─────────────────────────────────────────────────────────────────────
+
+routes.post('/snapshots/:id/diff', async (c) => {
+  const tenantId = tenantOf(c);
+  const snap = getRepo().snapshots.findById(c.req.param('id'));
+  if (!snap || snap.tenantId !== tenantId) return c.json({ error: 'snapshot not found' }, 404);
+  if (snap.status !== 'complete') return c.json({ error: 'snapshot must be complete before diffing' }, 400);
+  if (!snap.archiveStorageKey) return c.json({ error: 'snapshot has no archive' }, 400);
+
+  const body = await c.req.json<{ targetOrgId?: string }>();
+  if (!body.targetOrgId) return c.json({ error: 'targetOrgId required' }, 400);
+
+  const targetOrg = getRepo().connectedOrgs.findById(body.targetOrgId);
+  if (!targetOrg || targetOrg.tenantId !== tenantId) return c.json({ error: 'target org not found' }, 404);
+
+  const planId = randomUUID();
+  const accessToken = await getVault().getAccessToken(tenantId, body.targetOrgId);
+  const targetAdapter = createCrmAdapter(targetOrg, accessToken);
+  const engine = new DiffEngine(getBackend());
+
+  const diffDoc = await engine.buildDiff({
+    planId,
+    snapshotId: snap.id,
+    tenantId,
+    targetOrgId: body.targetOrgId,
+    snapshotStorageKey: snap.archiveStorageKey,
+    targetAdapter,
+  });
+
+  const storageKey = await getDiffPlanStore().save(tenantId, planId, diffDoc);
+
+  const plan: DiffPlan = {
+    id: planId, tenantId, snapshotId: snap.id, targetOrgId: body.targetOrgId,
+    storageKey, backendId: snap.archiveBackendId ?? 'gcs',
+    targetStateHash: diffDoc.targetStateHash,
+    summaryCounts: JSON.stringify(diffDoc.counts),
+    builtAt: Date.now(), expiresAt: null,
+  };
+  getRepo().diffPlans.insert(plan);
+
+  return c.json({ diffPlanId: planId }, 201);
+});
+
+routes.get('/diff-plans/:id', (c) => {
+  const tenantId = tenantOf(c);
+  const plan = getRepo().diffPlans.findById(c.req.param('id'));
+  if (!plan || plan.tenantId !== tenantId) return c.json({ error: 'not found' }, 404);
+  return c.json(plan);
+});
+
+// ─── Restore ──────────────────────────────────────────────────────────────────
+
+const VALID_MODES = new Set<RestoreJobMode>(['dry-run', 'execute']);
+
+routes.post('/snapshots/:id/restore', async (c) => {
+  const tenantId = tenantOf(c);
+  const snap = getRepo().snapshots.findById(c.req.param('id'));
+  if (!snap || snap.tenantId !== tenantId) return c.json({ error: 'snapshot not found' }, 404);
+  if (snap.status !== 'complete') return c.json({ error: 'snapshot must be complete before restoring' }, 400);
+
+  const body = await c.req.json<{
+    targetOrgId?: string; diffPlanId?: string; mode?: string; confirm?: boolean;
+  }>();
+  const { targetOrgId, diffPlanId, mode } = body;
+
+  if (!targetOrgId || !diffPlanId || !mode) {
+    return c.json({ error: 'targetOrgId, diffPlanId, mode required' }, 400);
+  }
+  if (!VALID_MODES.has(mode as RestoreJobMode)) {
+    return c.json({ error: 'mode must be dry-run or execute' }, 400);
+  }
+  if (mode === 'execute' && body.confirm !== true) {
+    return c.json({ error: 'confirm: true required for execute mode' }, 400);
+  }
+
+  const diffPlan = getRepo().diffPlans.findById(diffPlanId);
+  if (!diffPlan || diffPlan.tenantId !== tenantId) return c.json({ error: 'diff plan not found' }, 404);
+  if (diffPlan.snapshotId !== snap.id) return c.json({ error: 'diff plan does not belong to this snapshot' }, 400);
+
+  const targetOrg = getRepo().connectedOrgs.findById(targetOrgId);
+  if (!targetOrg || targetOrg.tenantId !== tenantId) return c.json({ error: 'target org not found' }, 404);
+
+  const jobId = randomUUID();
+  const now = Date.now();
+
+  const job: RestoreJob = {
+    id: jobId, tenantId, snapshotId: snap.id, targetOrgId, mode: mode as RestoreJobMode,
+    status: 'pending', diffPlanStorageKey: diffPlan.storageKey,
+    appliedChangesSummary: null, startedAt: now, completedAt: null, error: null,
+  };
+  getRepo().restoreJobs.insert(job);
+
+  // Fire and forget — poll GET /restores/:id for status
+  queueMicrotask(async () => {
+    const repo = getRepo();
+    repo.restoreJobs.updateStatus(jobId, 'running');
+    try {
+      const diffDoc = await getDiffPlanStore().load(diffPlan.storageKey);
+      const accessToken = await getVault().getAccessToken(tenantId, targetOrgId);
+      const targetAdapter = createCrmAdapter(targetOrg, accessToken);
+      const result = await getRestoreExecutor().execute({
+        doc: diffDoc, targetAdapter, dryRun: mode === 'dry-run',
+      });
+      const summary = JSON.stringify({
+        applied: result.applied, skipped: result.skipped,
+        failed: result.failed, errorCount: result.errors.length,
+      });
+      repo.restoreJobs.updateStatus(jobId, result.failed > 0 ? 'partial' : 'complete', {
+        appliedChangesSummary: summary, completedAt: Date.now(),
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      repo.restoreJobs.updateStatus(jobId, 'failed', { completedAt: Date.now(), error: message });
+    }
+  });
+
+  return c.json({ jobId }, 202);
+});
+
+routes.get('/restores', (c) => {
+  const tenantId = tenantOf(c);
+  const limitStr = c.req.query('limit');
+  const limit = limitStr ? Number.parseInt(limitStr, 10) : 50;
+  const jobs = getRepo().restoreJobs.findByTenant(tenantId, Number.isFinite(limit) ? limit : 50);
+  return c.json({ jobs });
+});
+
+routes.get('/restores/:id', (c) => {
+  const tenantId = tenantOf(c);
+  const job = getRepo().restoreJobs.findById(c.req.param('id'));
+  if (!job || job.tenantId !== tenantId) return c.json({ error: 'not found' }, 404);
+  return c.json(job);
 });
 
 export { routes as backupRoutes };
