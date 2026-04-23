@@ -22,6 +22,21 @@ export function getDb(): Database {
 function runMigrations(conn: Database): void {
   const schema = readFileSync(SCHEMA_PATH, 'utf-8');
   conn.exec(schema);
+  runAlterMigrations(conn);
+}
+
+function runAlterMigrations(conn: Database): void {
+  const alters = [
+    'ALTER TABLE tenants ADD COLUMN sf_org_id TEXT',
+    'ALTER TABLE tenants ADD COLUMN display_name TEXT',
+    'ALTER TABLE tenants ADD COLUMN provisioned_at INTEGER',
+  ];
+  for (const sql of alters) {
+    try { conn.exec(sql); } catch { /* column already exists */ }
+  }
+  try {
+    conn.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_tenants_sf_org_id ON tenants(sf_org_id)');
+  } catch { /* index already exists */ }
 }
 
 export function closeDb(): void {
@@ -35,4 +50,5 @@ export function closeDb(): void {
 export function setTestDb(instance: Database): void {
   db = instance;
   instance.exec(readFileSync(SCHEMA_PATH, 'utf-8'));
+  runAlterMigrations(instance);
 }

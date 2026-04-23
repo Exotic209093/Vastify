@@ -170,3 +170,56 @@ CREATE INDEX IF NOT EXISTS idx_backup_snapshots_tenant ON backup_snapshots(tenan
 CREATE INDEX IF NOT EXISTS idx_backup_snapshots_org    ON backup_snapshots(connected_org_id, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_diff_plans_lookup       ON diff_plans(snapshot_id, target_org_id, built_at DESC);
 CREATE INDEX IF NOT EXISTS idx_restore_jobs_tenant     ON restore_jobs(tenant_id, started_at DESC);
+
+-- ─── Auth: users and tenant membership ───────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS users (
+  id             TEXT PRIMARY KEY,
+  sf_user_id     TEXT NOT NULL UNIQUE,
+  sf_org_id      TEXT NOT NULL,
+  sf_username    TEXT NOT NULL,
+  display_name   TEXT NOT NULL,
+  email          TEXT,
+  created_at     INTEGER NOT NULL,
+  last_login_at  INTEGER
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_sf_user_id ON users(sf_user_id);
+CREATE INDEX IF NOT EXISTS idx_users_sf_org_id ON users(sf_org_id);
+
+CREATE TABLE IF NOT EXISTS tenant_members (
+  id          TEXT PRIMARY KEY,
+  tenant_id   TEXT NOT NULL REFERENCES tenants(id),
+  user_id     TEXT NOT NULL REFERENCES users(id),
+  role        TEXT NOT NULL CHECK(role IN ('admin','member')),
+  joined_at   INTEGER NOT NULL,
+  UNIQUE(tenant_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_tenant_members_tenant ON tenant_members(tenant_id);
+
+CREATE TABLE IF NOT EXISTS tenant_invites (
+  id                  TEXT PRIMARY KEY,
+  tenant_id           TEXT NOT NULL REFERENCES tenants(id),
+  invited_by_user_id  TEXT NOT NULL REFERENCES users(id),
+  email               TEXT NOT NULL,
+  role                TEXT NOT NULL CHECK(role IN ('admin','member')),
+  token               TEXT NOT NULL UNIQUE,
+  created_at          INTEGER NOT NULL,
+  expires_at          INTEGER NOT NULL,
+  accepted_at         INTEGER
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tenant_invites_token ON tenant_invites(token);
+CREATE INDEX IF NOT EXISTS idx_tenant_invites_tenant ON tenant_invites(tenant_id);
+
+CREATE TABLE IF NOT EXISTS tenant_storage_config (
+  tenant_id                      TEXT PRIMARY KEY REFERENCES tenants(id),
+  use_own_s3                     INTEGER NOT NULL DEFAULT 0,
+  s3_bucket_name                 TEXT,
+  s3_region                      TEXT,
+  s3_access_key_id_enc           TEXT,
+  s3_secret_enc                  TEXT,
+  use_own_gcs                    INTEGER NOT NULL DEFAULT 0,
+  gcs_bucket_name                TEXT,
+  gcs_project_id                 TEXT,
+  gcs_service_account_json_enc   TEXT,
+  updated_at                     INTEGER NOT NULL
+);
