@@ -117,6 +117,9 @@ export default function Team() {
             </table>
           )}
         </CardBody>
+        {remove.isError && (
+          <div className="px-6 pb-4 text-xs text-red-400">Failed to remove member: {(remove.error as Error).message}</div>
+        )}
       </Card>
 
       {/* Pending invites */}
