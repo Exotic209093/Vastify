@@ -42,3 +42,6 @@ dashboard/dist/
 dashboard/.vite/
 dashboard/vite.config.d.ts
 dashboard/vite.config.js
+
+# Git worktrees
+.worktrees/
