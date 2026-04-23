@@ -60,6 +60,7 @@ teamRoutes.delete('/:userId', requireAdmin, (c) => {
   const callerUserId = userOf(c);
   const targetUserId = c.req.param('userId');
 
+  if (!targetUserId) return c.json({ error: 'userId required' }, 400);
   if (targetUserId === callerUserId) return c.json({ error: 'cannot remove yourself' }, 400);
   getRepo().members.remove(tenantId, targetUserId);
   return new Response(null, { status: 204 });
