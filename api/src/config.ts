@@ -13,6 +13,12 @@ export interface AppConfig {
   demoTenantId: string;
   demoTenantApiKey: string;
   backends: BackendConfig[];
+  backupGitDataDir: string;
+  vaultMasterKeyHex: string;
+  sfClientId: string;
+  sfClientSecret: string;
+  hsClientId: string;
+  hsClientSecret: string;
 }
 
 function bool(key: string, fallback = false): boolean {
@@ -74,5 +80,11 @@ export function loadConfig(): AppConfig {
         container: str('AZURE_CONTAINER', 'vastify-demo'),
       },
     ],
+    backupGitDataDir: str('BACKUP_GIT_DATA_DIR', './.vastify/git'),
+    vaultMasterKeyHex: str('VAULT_MASTER_KEY', '0'.repeat(64)),
+    sfClientId: str('SF_CLIENT_ID', ''),
+    sfClientSecret: str('SF_CLIENT_SECRET', ''),
+    hsClientId: str('HS_CLIENT_ID', ''),
+    hsClientSecret: str('HS_CLIENT_SECRET', ''),
   };
 }
