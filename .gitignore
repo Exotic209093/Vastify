@@ -43,5 +43,8 @@ dashboard/.vite/
 dashboard/vite.config.d.ts
 dashboard/vite.config.js
 
+# API static build output
+api/public/
+
 # Git worktrees
 .worktrees/
