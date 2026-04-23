@@ -85,3 +85,88 @@ CREATE TABLE IF NOT EXISTS savings_snapshots (
   FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_snapshots_tenant_time ON savings_snapshots(tenant_id, at DESC);
+
+-- ============================================================
+-- Backup subsystem tables (added Plan 1)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS connected_orgs (
+  id                        TEXT PRIMARY KEY,
+  tenant_id                 TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  crm_type                  TEXT NOT NULL CHECK (crm_type IN ('salesforce','hubspot')),
+  display_name              TEXT NOT NULL,
+  instance_url              TEXT NOT NULL,
+  external_org_id           TEXT NOT NULL,
+  is_sandbox                INTEGER NOT NULL DEFAULT 0,
+  oauth_refresh_token_enc   TEXT NOT NULL,
+  oauth_access_token_cache  TEXT,
+  access_token_expires_at   INTEGER,
+  git_remote_url            TEXT,
+  connected_at              INTEGER NOT NULL,
+  last_used_at              INTEGER,
+  UNIQUE(tenant_id, external_org_id)
+);
+
+CREATE TABLE IF NOT EXISTS backup_scopes (
+  id                TEXT PRIMARY KEY,
+  tenant_id         TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  connected_org_id  TEXT NOT NULL REFERENCES connected_orgs(id) ON DELETE CASCADE,
+  name              TEXT NOT NULL,
+  root_object       TEXT NOT NULL,
+  max_depth         INTEGER NOT NULL DEFAULT 3,
+  include_files     INTEGER NOT NULL DEFAULT 1,
+  include_metadata  INTEGER NOT NULL DEFAULT 1,
+  created_at        INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS backup_snapshots (
+  id                      TEXT PRIMARY KEY,
+  tenant_id               TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  connected_org_id        TEXT NOT NULL REFERENCES connected_orgs(id),
+  backup_scope_id         TEXT NOT NULL REFERENCES backup_scopes(id),
+  status                  TEXT NOT NULL CHECK (status IN ('pending','running','complete','failed')),
+  archive_storage_key     TEXT,
+  archive_backend_id      TEXT,
+  git_commit_sha          TEXT,
+  record_count            INTEGER,
+  file_count              INTEGER,
+  metadata_item_count     INTEGER,
+  size_bytes              INTEGER,
+  started_at              INTEGER NOT NULL,
+  completed_at            INTEGER,
+  error                   TEXT
+);
+
+CREATE TABLE IF NOT EXISTS diff_plans (
+  id                TEXT PRIMARY KEY,
+  tenant_id         TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  snapshot_id       TEXT NOT NULL REFERENCES backup_snapshots(id),
+  target_org_id     TEXT NOT NULL REFERENCES connected_orgs(id),
+  storage_key       TEXT NOT NULL,
+  backend_id        TEXT NOT NULL,
+  target_state_hash TEXT NOT NULL,
+  summary_counts    TEXT NOT NULL,
+  built_at          INTEGER NOT NULL,
+  expires_at        INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS restore_jobs (
+  id                        TEXT PRIMARY KEY,
+  tenant_id                 TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  snapshot_id               TEXT NOT NULL REFERENCES backup_snapshots(id),
+  target_org_id             TEXT NOT NULL REFERENCES connected_orgs(id),
+  mode                      TEXT NOT NULL CHECK (mode IN ('dry-run','execute')),
+  status                    TEXT NOT NULL CHECK (status IN ('pending','running','complete','partial','failed')),
+  diff_plan_storage_key     TEXT,
+  applied_changes_summary   TEXT,
+  started_at                INTEGER NOT NULL,
+  completed_at              INTEGER,
+  error                     TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_connected_orgs_tenant   ON connected_orgs(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_backup_scopes_org       ON backup_scopes(connected_org_id);
+CREATE INDEX IF NOT EXISTS idx_backup_snapshots_tenant ON backup_snapshots(tenant_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_backup_snapshots_org    ON backup_snapshots(connected_org_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_diff_plans_lookup       ON diff_plans(snapshot_id, target_org_id, built_at DESC);
+CREATE INDEX IF NOT EXISTS idx_restore_jobs_tenant     ON restore_jobs(tenant_id, started_at DESC);

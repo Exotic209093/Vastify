@@ -6,6 +6,7 @@ import { recordsRoutes } from './records/routes.ts';
 import { odataRoutes } from './odata/handler.ts';
 import { statsRoutes } from './stats/routes.ts';
 import { rulesRoutes } from './rules/routes.ts';
+import { backupRoutes } from './backup/routes.ts';
 import { log } from './util/logger.ts';
 
 const config = loadConfig();
@@ -27,6 +28,7 @@ app.route('/v1/files', filesRoutes);
 app.route('/v1/records', recordsRoutes);
 app.route('/v1/stats', statsRoutes);
 app.route('/v1/rules', rulesRoutes);
+app.route('/v1/backup', backupRoutes);
 app.route('/odata/v1', odataRoutes);
 
 app.notFound((c) => c.json({ error: 'not_found', path: c.req.path }, 404));

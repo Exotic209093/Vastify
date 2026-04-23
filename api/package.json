@@ -16,11 +16,16 @@
     "@aws-sdk/s3-request-presigner": "^3.717.0",
     "@azure/storage-blob": "^12.26.0",
     "@google-cloud/storage": "^7.14.0",
+    "archiver": "^7.0.1",
     "hono": "^4.6.14",
+    "simple-git": "^3.36.0",
+    "unzipper": "^0.12.3",
     "uuid": "^11.0.3"
   },
   "devDependencies": {
+    "@types/archiver": "^7.0.0",
     "@types/bun": "^1.1.14",
+    "@types/unzipper": "^0.10.11",
     "@types/uuid": "^10.0.0",
     "bun-types": "^1.1.38",
     "typescript": "^5.7.2"
