@@ -53,8 +53,8 @@ const emptyConfig = (tenantId: string): TenantStorageConfig => ({
   updatedAt: Date.now(),
 });
 
-// GET /v1/settings/storage — current config, credentials redacted
-settingsRoutes.get('/storage', (c) => {
+// GET /v1/settings/storage — current config, credentials redacted (admin only)
+settingsRoutes.get('/storage', requireAdmin, (c) => {
   const tenantId = tenantOf(c);
   const repo = getRepo();
   const config = repo.storageConfig.findByTenant(tenantId);

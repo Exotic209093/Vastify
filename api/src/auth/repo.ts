@@ -58,6 +58,7 @@ export interface TenantStorageConfig {
 
 export interface AuthRepo {
   users: {
+    findById(id: string): User | null;
     findBySfUserId(sfUserId: string): User | null;
     upsert(user: Omit<User, 'id'> & { id?: string }): User;
   };
@@ -136,6 +137,10 @@ function rowToStorage(r: StorageRow): TenantStorageConfig {
 export function createAuthRepo(db: Database): AuthRepo {
   return {
     users: {
+      findById(id) {
+        const r = db.query<UserRow, [string]>('SELECT * FROM users WHERE id = ?').get(id);
+        return r ? rowToUser(r) : null;
+      },
       findBySfUserId(sfUserId) {
         const r = db.query<UserRow, [string]>('SELECT * FROM users WHERE sf_user_id = ?').get(sfUserId);
         return r ? rowToUser(r) : null;

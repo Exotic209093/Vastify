@@ -19,12 +19,14 @@ function getRepo() {
 // Redirect user to Salesforce OAuth
 authRoutes.get('/auth/salesforce/login', (c) => {
   const config = loadConfig();
+  const intent = c.req.query('intent');
+  const state = intent === 'connect-org' ? 'connect-org' : 'login';
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: config.sfClientId,
     redirect_uri: config.sfRedirectUri,
     scope: 'openid profile email api refresh_token',
-    state: 'login',
+    state,
   });
   return c.redirect(`${SF_AUTH_URL}?${params.toString()}`);
 });
@@ -34,6 +36,7 @@ authRoutes.get('/auth/salesforce/callback', async (c) => {
   const config = loadConfig();
   const repo = getRepo();
   const code = c.req.query('code');
+  const state = c.req.query('state') ?? 'login';
 
   if (!code) return c.json({ error: 'missing_code' }, 400);
 
@@ -64,6 +67,11 @@ authRoutes.get('/auth/salesforce/callback', async (c) => {
   // SF sub is a URL like https://...salesforce.com/id/orgId/userId — extract the last segment
   const sfUserId = sfUser.sub.split('/').pop() ?? sfUser.sub;
   const sfOrgId = sfUser.organization_id;
+
+  // Handle connect-org intent: redirect back to dashboard without provisioning
+  if (state === 'connect-org') {
+    return c.redirect('/backups?connected=1');
+  }
 
   // Provision tenant if first login from this org
   let tenant = repo.tenants.findBySfOrgId(sfOrgId);
@@ -119,5 +127,11 @@ authRoutes.get('/auth/me', requireApiKey, (c) => {
   const userId = userOf(c);
   const role = roleOf(c);
   const members = repo.members.findByTenant(tenantId);
-  return c.json({ tenantId, userId, role, memberCount: members.length });
+  const user = userId ? repo.users.findById(userId) : null;
+  return c.json({
+    tenantId, userId, role, memberCount: members.length,
+    displayName: user?.displayName ?? null,
+    email: user?.email ?? null,
+    sfUsername: user?.sfUsername ?? null,
+  });
 });

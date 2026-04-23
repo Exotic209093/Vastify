@@ -6,11 +6,20 @@ import { createAuthRepo } from '../auth/repo.ts';
 
 export const teamRoutes = new Hono();
 
-teamRoutes.use('*', requireApiKey);
-
 function getRepo() {
   return createAuthRepo(getDb());
 }
+
+// Public: validate an invite token (must be before requireApiKey)
+teamRoutes.get('/invite/:token', (c) => {
+  const invite = getRepo().invites.findByToken(c.req.param('token') ?? '');
+  if (!invite || invite.acceptedAt !== null || invite.expiresAt < Date.now()) {
+    return c.json({ error: 'invite not found or expired' }, 404);
+  }
+  return c.json({ tenantId: invite.tenantId, email: invite.email, role: invite.role });
+});
+
+teamRoutes.use('*', requireApiKey);
 
 // List members and pending invites
 teamRoutes.get('/', (c) => {
@@ -43,15 +52,6 @@ teamRoutes.post('/invite', requireAdmin, async (c) => {
   const inviteUrl = `${host}/team/invite/${token}`;
 
   return c.json({ token, inviteUrl }, 201);
-});
-
-// Validate an invite token
-teamRoutes.get('/invite/:token', (c) => {
-  const invite = getRepo().invites.findByToken(c.req.param('token'));
-  if (!invite || invite.acceptedAt !== null || invite.expiresAt < Date.now()) {
-    return c.json({ error: 'invite not found or expired' }, 404);
-  }
-  return c.json({ tenantId: invite.tenantId, email: invite.email, role: invite.role });
 });
 
 // Remove a member (admin only, cannot remove self)
