@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { serveStatic } from 'hono/bun';
 import { loadConfig } from './config.ts';
 import { getDb } from './db/client.ts';
 import { filesRoutes } from './files/routes.ts';
@@ -51,6 +52,10 @@ app.route('/v1/backup', backupRoutes);
 app.route('/v1/team', teamRoutes);
 app.route('/v1/settings', settingsRoutes);
 app.route('/odata/v1', odataRoutes);
+
+// Static files — React SPA build output
+app.use('/*', serveStatic({ root: './public' }));
+app.get('/*', serveStatic({ path: './public/index.html' }));
 
 app.notFound((c) => c.json({ error: 'not_found', path: c.req.path }, 404));
 
