@@ -118,3 +118,29 @@ export interface RoutingRule {
   target: { backendId: string; storageClass: string };
   enabled: boolean;
 }
+
+/**
+ * API helper that authenticates via the vastify_session HttpOnly cookie.
+ * Use for all new pages. Existing pages keep using api() with API key.
+ */
+export async function authApi<T = unknown>(path: string, opts: FetchOpts = {}): Promise<T> {
+  const headers = new Headers(opts.headers as HeadersInit | undefined);
+  const init: RequestInit = { ...opts, headers, credentials: 'include' };
+  if (opts.json !== undefined) {
+    headers.set('Content-Type', 'application/json');
+    init.body = JSON.stringify(opts.json);
+    init.method ??= 'POST';
+  }
+  const res = await fetch(path, { ...init });
+  if (res.status === 401) {
+    window.location.href = '/login';
+    throw new Error('Unauthorized');
+  }
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`HTTP ${res.status}: ${text}`);
+  }
+  const ct = res.headers.get('content-type') ?? '';
+  if (ct.includes('application/json')) return (await res.json()) as T;
+  return (await res.text()) as unknown as T;
+}
