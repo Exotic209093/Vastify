@@ -1,4 +1,4 @@
-import { describe, it, expect, spyOn, mock } from 'bun:test';
+import { describe, it, expect, spyOn, mock, afterEach } from 'bun:test';
 import { Hono } from 'hono';
 import { authRoutes } from '../routes.js';
 import { Database } from 'bun:sqlite';
@@ -18,6 +18,10 @@ function setupDb() {
 }
 
 describe('Auth routes', () => {
+  afterEach(() => {
+    (globalThis.fetch as ReturnType<typeof spyOn>).mockRestore?.();
+  });
+
   it('GET /auth/salesforce/login redirects to Salesforce', async () => {
     process.env.SF_CLIENT_ID = 'my-client-id';
     process.env.SF_REDIRECT_URI = 'http://localhost:3000/auth/salesforce/callback';
