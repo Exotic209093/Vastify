@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, RefreshCw, ExternalLink, HardDrive } from 'lucide-react';
-import { Card, CardBody, CardHeader } from '../components/Card';
+import { Card, CardBody } from '../components/Card';
 import { listOrgs, listSnapshots, listScopes, createScope, triggerSnapshot } from '../lib/backup-api';
 import type { ConnectedOrg, Snapshot } from '../lib/backup-api';
 import { relativeTime, bytes } from '../lib/format';
