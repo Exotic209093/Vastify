@@ -81,16 +81,16 @@ Timer in corner ticks: 00:58.]
 
 > "And when something goes wrong in Salesforce — somebody runs a bad import, deletes the wrong contacts — Vastify already has a snapshot. The problem isn't the snapshot. It's understanding what to restore."
 
-**[VISUAL** — Click "**Explain this diff**" button. Claude response streams in, plain English, color-coded:
-- ✅ Safe: 12 contacts deleted in error — restore as-is
-- ⚠️ Review: 3 accounts edited since snapshot — manual merge
-- ❌ Skip: 1 closed opportunity — restoring would re-open the wrong record]
+**[VISUAL** — Click "**Explain this diff**" button. Claude response streams in, plain English. Headline counters resolve to **44 safe / 3 review / 0 skip**, with per-entity cards:
+- ✅ **Safe:** 12 Contact inserts (deleted in error, restore as-is) · 1 Opportunity skip-delete (live org has newer copy, leave alone) · 31 Case skip-deletes (preserve live records)
+- ⚠️ **Review:** 3 Accounts (snapshot would overwrite Name/Phone/AnnualRevenue — verify the snapshot values are wanted)
+- *Plus a yellow warning explaining exactly which Account fields would be overwritten.*]
 
-> "Claude reads the whole diff and tells you what's safe, what needs review, and what to leave alone. With reasoning."
+> "Claude reads every change in the diff and tells you what's safe, what needs review, and why — in plain English. Forty-four changes safe to apply, three accounts that need a human eye, zero that should be skipped entirely."
 
-**[VISUAL** — Click "Restore safe items" — toast: "12 contacts restored."]
+**[VISUAL** — Click "**Restore the 44 safe items**" button on the DiffExplainer card. Inline status appears: "Dry run complete — 13 records would be restored, 31 preserved untouched." (Or live result if the seed has a real run.)]
 
-> "One click. Done."
+> "One click commits the safe ones. The reviews get flagged. Nothing destructive happens without you signing off."
 
 ---
 

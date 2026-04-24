@@ -53,8 +53,9 @@ const VERDICT_META = {
   },
 } as const;
 
-function DiffExplainer({ planId }: { planId: string }) {
+function DiffExplainer({ planId, snapshotId, targetOrgId }: { planId: string; snapshotId: string; targetOrgId: string }) {
   const [explanation, setExplanation] = useState<DiffExplanation | null>(null);
+  const [restoreResult, setRestoreResult] = useState<string | null>(null);
 
   const explain = useMutation({
     mutationFn: async () => {
@@ -63,7 +64,27 @@ function DiffExplainer({ planId }: { planId: string }) {
       });
       return res.explanation;
     },
-    onSuccess: (exp) => setExplanation(exp),
+    onSuccess: (exp) => { setExplanation(exp); setRestoreResult(null); },
+  });
+
+  const restoreSafe = useMutation({
+    mutationFn: async () => {
+      const res = await triggerRestore(snapshotId, {
+        targetOrgId,
+        diffPlanId: planId,
+        mode: 'dry-run',
+      });
+      return res;
+    },
+    onSuccess: (res) => {
+      const safeCount = grouped
+        ? grouped.safe.reduce((s, e) => s + e.insertCount + e.updateCount + e.skipDeleteCount, 0)
+        : 0;
+      setRestoreResult(`Dry run started — job ${res.jobId.slice(0, 8)} · ${safeCount} safe items queued. (Execute Restore in the panel below to commit.)`);
+    },
+    onError: (err) => {
+      setRestoreResult(`Restore failed: ${(err as Error).message}`);
+    },
   });
 
   const grouped = explanation
@@ -196,10 +217,41 @@ function DiffExplainer({ planId }: { planId: string }) {
               </div>
             )}
 
+            {/* Restore safe items — single click, fires a dry-run that the
+                user (or video) can then execute via the panel below. */}
+            {(() => {
+              const safeTotal = grouped.safe.reduce(
+                (s, e) => s + e.insertCount + e.updateCount + e.skipDeleteCount,
+                0,
+              );
+              if (safeTotal === 0) return null;
+              return (
+                <button
+                  onClick={() => restoreSafe.mutate()}
+                  disabled={restoreSafe.isPending}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 text-sm font-medium shadow-lg shadow-emerald-900/40 transition disabled:opacity-50"
+                >
+                  {restoreSafe.isPending ? (
+                    <><Loader2 size={14} className="animate-spin" /> Starting dry-run…</>
+                  ) : (
+                    <><CheckCircle2 size={14} /> Restore the {safeTotal} safe items</>
+                  )}
+                </button>
+              );
+            })()}
+
+            {restoreResult && (
+              <div className="rounded-md border border-emerald-800/50 bg-emerald-900/20 p-3 text-xs text-emerald-100/90 leading-relaxed">
+                {restoreResult}
+              </div>
+            )}
+
             <button
               onClick={() => {
                 setExplanation(null);
+                setRestoreResult(null);
                 explain.reset();
+                restoreSafe.reset();
               }}
               className="text-xs text-slate-400 hover:text-slate-200 underline"
             >
@@ -435,7 +487,7 @@ export default function SnapshotDetail() {
 
       {diffPlan && snap.status === 'complete' && (
         <>
-          <DiffExplainer planId={diffPlan.id} />
+          <DiffExplainer planId={diffPlan.id} snapshotId={snap.id} targetOrgId={diffPlan.targetOrgId} />
           <RestorePanel snapshotId={snap.id} diffPlan={diffPlan} />
         </>
       )}
