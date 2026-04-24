@@ -1,5 +1,5 @@
 import { getAnthropic, modelId } from '../shared/client.ts';
-import { setupTools } from './tools.ts';
+import { createSetupTools } from './tools.ts';
 import { log } from '../../util/logger.ts';
 
 // ---------------------------------------------------------------------------
@@ -95,6 +95,13 @@ export async function* runSetupAgent(
   // runner returns the next message (meaning all pending tools have finished).
   const pendingTools = new Map<string, { name: string; startedAt: number }>();
 
+  // Per-run output cache: each tool's run() writes its result here so the
+  // outer loop can attach it to the tool_use_completed event.
+  const toolOutputs = new Map<string, Record<string, unknown>>();
+  const tools = createSetupTools((name, output) => {
+    toolOutputs.set(name, output);
+  });
+
   const runner = client.beta.messages.toolRunner(
     {
       model: modelId(),
@@ -102,7 +109,7 @@ export async function* runSetupAgent(
       thinking: { type: 'adaptive' },
       output_config: { effort: 'xhigh' },
       system: SYSTEM_PROMPT,
-      tools: setupTools,
+      tools,
       messages: initialMessages,
     },
     opts.signal ? { signal: opts.signal } : undefined,
@@ -121,7 +128,7 @@ export async function* runSetupAgent(
           kind: 'tool_use_completed',
           id,
           name: meta.name,
-          output: null,
+          output: toolOutputs.get(meta.name) ?? null,
           elapsedMs: Date.now() - meta.startedAt,
         };
       }
@@ -157,7 +164,7 @@ export async function* runSetupAgent(
         kind: 'tool_use_completed',
         id,
         name: meta.name,
-        output: null,
+        output: toolOutputs.get(meta.name) ?? null,
         elapsedMs: Date.now() - meta.startedAt,
       };
     }
