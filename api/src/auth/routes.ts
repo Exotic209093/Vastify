@@ -114,6 +114,43 @@ authRoutes.get('/auth/salesforce/callback', async (c) => {
   return c.redirect('/');
 });
 
+// Demo login — provisions a fixed demo tenant + user, no OAuth required
+authRoutes.get('/auth/demo/login', async (c) => {
+  const config = loadConfig();
+  const db = getDb();
+  const repo = getRepo();
+
+  // Ensure demo tenant exists
+  let tenant = db.query<{ id: string }, [string]>('SELECT id FROM tenants WHERE id = ?').get(config.demoTenantId);
+  if (!tenant) {
+    db.prepare('INSERT OR IGNORE INTO tenants (id, name, api_key_hash, created_at) VALUES (?, ?, ?, ?)').run(
+      config.demoTenantId, 'Demo Workspace', `demo-placeholder-${config.demoTenantId}`, Date.now(),
+    );
+    repo.storageConfig.initForTenant(config.demoTenantId);
+  }
+
+  // Ensure demo user exists
+  const demoSfUserId = 'demo-sf-user';
+  const now = Date.now();
+  const user = repo.users.upsert({
+    sfUserId: demoSfUserId, sfOrgId: 'demo-org', sfUsername: 'demo@vastify.dev',
+    displayName: 'Demo User', email: 'demo@vastify.dev', createdAt: now, lastLoginAt: now,
+  });
+
+  // Ensure demo user is admin member of demo tenant
+  const existingMember = repo.members.findByTenantAndUser(config.demoTenantId, user.id);
+  if (!existingMember) {
+    repo.members.insert({ id: randomUUID(), tenantId: config.demoTenantId, userId: user.id, role: 'admin', joinedAt: now });
+  }
+
+  const token = await signJwt(
+    { tenantId: config.demoTenantId, userId: user.id, role: 'admin', sfOrgId: 'demo-org' },
+    config.jwtSecret,
+  );
+  setCookie(c, 'vastify_session', token, { httpOnly: true, sameSite: 'Lax', path: '/', maxAge: 8 * 60 * 60 });
+  return c.redirect('/');
+});
+
 // Clear session cookie
 authRoutes.post('/auth/logout', (c) => {
   deleteCookie(c, 'vastify_session', { path: '/' });

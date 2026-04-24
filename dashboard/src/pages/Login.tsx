@@ -36,6 +36,22 @@ export default function Login() {
             Continue with Salesforce
           </a>
 
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-700" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-slate-900 px-3 text-slate-500">or</span>
+            </div>
+          </div>
+
+          <a
+            href="/auth/demo/login"
+            className="flex items-center justify-center w-full rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-300 font-medium py-3 px-4 transition-colors text-sm"
+          >
+            Continue as Demo User
+          </a>
+
           <p className="text-xs text-slate-500 text-center">
             Your Salesforce org becomes your Vastify workspace.
             First user is automatically the admin.
