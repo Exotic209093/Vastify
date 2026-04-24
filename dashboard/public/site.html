@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Vastify — CRM Storage, Offloaded.</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          brand: {
+            50: '#eef4ff', 100: '#dfe8ff', 300: '#93a6ff',
+            500: '#4f6bff', 600: '#2563eb', 700: '#1d4ed8',
+            800: '#1e40af', 900: '#1e3a8a',
+          },
+        },
+        fontFamily: {
+          sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+          mono: ['JetBrains Mono', 'ui-monospace', 'Menlo', 'monospace'],
+        },
+      },
+    },
+  };
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  html, body, #root { height: 100%; background: #020617; color: #f1f5f9; }
+  body { font-family: Inter, ui-sans-serif, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .font-mono, code, pre { font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; }
+
+  @keyframes shimmer-spin { to { transform: rotate(1turn); } }
+  .shimmer-wrap { position: relative; isolation: isolate; border-radius: 0.75rem; }
+  .shimmer-wrap::before {
+    content: ""; position: absolute; inset: -1px; border-radius: inherit;
+    background: conic-gradient(from 0deg,
+      rgba(37,99,235,0) 0deg, rgba(37,99,235,0) 200deg,
+      rgba(37,99,235,1) 260deg, rgba(147,166,255,1) 300deg,
+      rgba(37,99,235,0) 340deg, rgba(37,99,235,0) 360deg);
+    animation: shimmer-spin 6s linear infinite; z-index: 0;
+  }
+  .shimmer-wrap::after {
+    content: ""; position: absolute; inset: 1px;
+    border-radius: calc(0.75rem - 1px); background: #0b1222; z-index: 1;
+  }
+  .shimmer-wrap > * { position: relative; z-index: 2; }
+
+  .flip-scene { perspective: 1400px; }
+  .flip-card {
+    position: relative; width: 100%; height: 100%;
+    transform-style: preserve-3d;
+    transition: transform 700ms cubic-bezier(.2,.8,.2,1);
+  }
+  .flip-scene:hover .flip-card, .flip-card.is-flipped { transform: rotateY(180deg); }
+  .flip-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+  .flip-face.back { transform: rotateY(180deg); }
+
+  .hero-glow {
+    position: absolute; inset: -10%;
+    background: radial-gradient(50% 50% at 50% 50%, rgba(37,99,235,0.35), rgba(37,99,235,0) 70%);
+    filter: blur(40px); z-index: 0; pointer-events: none;
+  }
+
+  .grid-bg {
+    background-image:
+      linear-gradient(rgba(148,163,184,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148,163,184,0.06) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse at top, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at top, black 30%, transparent 75%);
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 999px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  input[type=range].vast-range {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 6px; border-radius: 999px;
+    background: linear-gradient(90deg, #2563eb var(--pct, 50%), #1e293b var(--pct, 50%));
+    outline: none;
+  }
+  input[type=range].vast-range::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 20px; height: 20px; border-radius: 999px;
+    background: #fff; border: 2px solid #2563eb;
+    box-shadow: 0 0 0 6px rgba(37,99,235,0.15), 0 6px 20px rgba(37,99,235,0.45);
+    cursor: pointer;
+  }
+  input[type=range].vast-range::-moz-range-thumb {
+    width: 20px; height: 20px; border-radius: 999px;
+    background: #fff; border: 2px solid #2563eb; cursor: pointer;
+  }
+
+  .orb {
+    position: absolute; border-radius: 9999px;
+    filter: blur(60px); opacity: 0.55;
+    mix-blend-mode: screen; will-change: transform;
+  }
+  a { text-decoration: none; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/framer-motion@11.11.17/dist/framer-motion.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100">
+<div id="root"></div>
+
+<script type="text/babel" data-presets="env,react">
+const { useState, useEffect, useRef } = React;
+const FM = window.FramerMotion || window.Motion || window["framer-motion"];
+const { motion, AnimatePresence, useMotionValue, useTransform, animate } = FM;
+
+function useHashRoute() {
+  const [route, setRoute] = useState(() => window.location.hash.replace(/^#/, '') || '/');
+  useEffect(() => {
+    const onHash = () => setRoute(window.location.hash.replace(/^#/, '') || '/');
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  return [route];
+}
+
+function Logo() {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="relative w-7 h-7 rounded-md bg-gradient-to-br from-brand-500 to-brand-700 shadow-[0_0_24px_rgba(37,99,235,0.55)] flex items-center justify-center">
+        <div className="w-3 h-3 rounded-[2px] bg-slate-950" />
+        <div className="absolute -right-0.5 -bottom-0.5 w-2 h-2 rounded-[2px] bg-brand-300" />
+      </div>
+      <div className="leading-tight">
+        <div className="text-[15px] font-semibold tracking-tight text-white">Vastify</div>
+        <div className="text-[10px] text-slate-400 -mt-0.5">CRM Storage</div>
+      </div>
+    </div>
+  );
+}
+
+function TopNav({ route }) {
+  return (
+    <header className="sticky top-0 z-40 backdrop-blur-md bg-slate-950/70 border-b border-slate-900">
+      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <a href="#/"><Logo /></a>
+        <nav className="hidden md:flex items-center gap-8 text-sm text-slate-300">
+          <a href="#/" className={`hover:text-white transition ${route === '/' ? 'text-white' : ''}`}>Product</a>
+          <a href="#/" className="hover:text-white transition">Pricing</a>
+          <a href="#/partners" className={`hover:text-white transition ${route === '/partners' ? 'text-white' : ''}`}>Partners</a>
+          <a href="#/" className="hover:text-white transition">Docs</a>
+        </nav>
+        <div className="flex items-center gap-3">
+          <a href="/login" className="hidden sm:inline text-sm text-slate-300 hover:text-white transition">Sign in</a>
+          <a href="/login" className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium px-3.5 py-2 transition">Start free</a>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function Footer() {
+  const cols = [
+    { h: 'Product', items: ['File offload','Record archive','Backups','OData API','Pricing','Changelog'] },
+    { h: 'Developers', items: ['Documentation','API reference','Self-host','Status','Security'] },
+    { h: 'Company', items: ['About','Partners','Customers','Careers','Contact'] },
+    { h: 'Legal', items: ['Terms','Privacy','DPA','Sub-processors'] },
+  ];
+  return (
+    <footer className="border-t border-slate-900 mt-24">
+      <div className="max-w-7xl mx-auto px-6 py-14 grid grid-cols-2 md:grid-cols-6 gap-8">
+        <div className="col-span-2 space-y-4">
+          <Logo />
+          <p className="text-sm text-slate-400 max-w-xs">
+            Offload Salesforce CRM files and records to object storage. Keep the UX, cut the bill.
+          </p>
+          <div className="flex gap-2 text-xs text-slate-500">
+            <span className="rounded-md border border-slate-800 px-2 py-1">SOC 2 Type II</span>
+            <span className="rounded-md border border-slate-800 px-2 py-1">GDPR</span>
+          </div>
+        </div>
+        {cols.map(c => (
+          <div key={c.h}>
+            <div className="text-xs uppercase tracking-wider text-slate-500 mb-3">{c.h}</div>
+            <ul className="space-y-2 text-sm text-slate-300">
+              {c.items.map(i => <li key={i}><a href="#/" className="hover:text-white transition">{i}</a></li>)}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <div className="border-t border-slate-900 py-6 text-xs text-slate-500 text-center">
+        © 2026 Vastify Labs Inc. · Salesforce is a trademark of salesforce.com, inc. — not affiliated.
+      </div>
+    </footer>
+  );
+}
+
+function AnimatedCounter({ to, duration = 2.5, prefix = "", suffix = "", className = "" }) {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    const controls = animate(0, to, {
+      duration, ease: [0.16, 1, 0.3, 1],
+      onUpdate: v => setVal(v),
+    });
+    return () => controls.stop();
+  }, [to, duration]);
+  return <span className={className}>{prefix}{Math.round(val).toLocaleString()}{suffix}</span>;
+}
+
+function DashMockup() {
+  const bars = [32, 58, 44, 71, 39, 82, 65, 90, 55, 74, 48, 86];
+  return (
+    <div className="relative rounded-2xl border border-slate-800 bg-slate-900/80 shadow-2xl overflow-hidden backdrop-blur-sm">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 bg-slate-900/80">
+        <div className="flex gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-full bg-slate-700" />
+          <div className="w-2.5 h-2.5 rounded-full bg-slate-700" />
+          <div className="w-2.5 h-2.5 rounded-full bg-slate-700" />
+        </div>
+        <div className="ml-4 text-[11px] font-mono text-slate-500">app.vastify.io / overview</div>
+      </div>
+      <div className="grid grid-cols-[130px_1fr]">
+        <div className="border-r border-slate-800 p-3 space-y-1 text-[11px]">
+          {['Overview','Files','Records','Rules','Backups','Settings'].map((i, idx) => (
+            <div key={i} className={`flex items-center gap-2 rounded-md px-2 py-1.5 ${idx===0 ? 'bg-brand-600/20 text-brand-50 border border-brand-600/30' : 'text-slate-400'}`}>
+              <span className="w-1.5 h-1.5 rounded-sm bg-current opacity-60" />
+              {i}
+            </div>
+          ))}
+        </div>
+        <div className="p-4 space-y-3">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-lg border border-slate-800 bg-gradient-to-br from-brand-600/20 to-slate-900/50 p-3">
+              <div className="text-[9px] uppercase tracking-wider text-slate-400">Saved / mo</div>
+              <div className="font-mono text-lg font-semibold text-emerald-300 mt-0.5">$2,847</div>
+            </div>
+            <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+              <div className="text-[9px] uppercase tracking-wider text-slate-400">Files</div>
+              <div className="font-mono text-lg font-semibold mt-0.5">184,312</div>
+            </div>
+            <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+              <div className="text-[9px] uppercase tracking-wider text-slate-400">Records</div>
+              <div className="font-mono text-lg font-semibold mt-0.5">2.4M</div>
+            </div>
+          </div>
+          <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-3 h-[142px]">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-[10px] text-slate-400">Offload throughput · last 24h</div>
+              <div className="text-[10px] font-mono text-brand-300">+18.4%</div>
+            </div>
+            <div className="flex items-end gap-1 h-[96px]">
+              {bars.map((h, i) => (
+                <motion.div key={`bar-${i}`}
+                  initial={{ height: 0 }} animate={{ height: `${h}%` }}
+                  transition={{ delay: 0.3 + i*0.04, duration: 0.6, ease: "easeOut" }}
+                  className="flex-1 rounded-t-[3px] bg-gradient-to-t from-brand-700 to-brand-400" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Hero() {
+  const floatY = useMotionValue(0);
+  useEffect(() => {
+    const ctrl = animate(floatY, [0, -14, 0], { duration: 6, repeat: Infinity, ease: "easeInOut" });
+    return () => ctrl.stop();
+  }, []);
+  return (
+    <section className="relative overflow-hidden">
+      <div className="absolute inset-0 grid-bg pointer-events-none" />
+      <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[900px] h-[900px] rounded-full bg-brand-600/15 blur-3xl pointer-events-none" />
+      <div className="max-w-7xl mx-auto px-6 pt-20 pb-24 grid lg:grid-cols-[1.05fr_1fr] gap-12 items-center relative">
+        <div>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+            className="inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/60 px-3 py-1 text-xs text-slate-300 mb-6">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Live · 480+ Salesforce orgs offloaded this quarter
+          </motion.div>
+          <motion.h1 initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.05 }}
+            className="text-5xl md:text-6xl lg:text-7xl font-semibold tracking-[-0.03em] text-white leading-[0.98]">
+            Stop Paying Salesforce<br/>Storage Prices.
+          </motion.h1>
+          <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.15 }}
+            className="mt-6 text-lg md:text-xl text-slate-400 max-w-xl">
+            Vastify moves your CRM files and records to S3 or GCS automatically — at a fraction of the cost. Native Salesforce UX stays exactly the same.
+          </motion.p>
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.25 }}
+            className="mt-8 flex flex-wrap gap-3">
+            <a href="/login" className="rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium px-5 py-3 transition shadow-[0_8px_30px_rgba(37,99,235,0.35)]">Start Free Trial</a>
+            <a href="#calc" className="rounded-lg border border-slate-700 hover:border-slate-600 hover:bg-slate-900/60 text-slate-200 font-medium px-5 py-3 transition">See How It Works →</a>
+          </motion.div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6, duration: 0.8 }}
+            className="mt-10 rounded-xl border border-slate-800 bg-slate-900/60 p-5 max-w-md">
+            <div className="text-xs uppercase tracking-wider text-slate-400">Saved right now, this month</div>
+            <div className="mt-1 flex items-baseline gap-2">
+              <AnimatedCounter to={2847} duration={3} prefix="$" className="font-mono text-5xl font-semibold text-emerald-300" />
+              <span className="text-sm text-slate-500">/mo</span>
+            </div>
+            <div className="mt-3 text-xs text-slate-500">Based on 112 GB offloaded · S3 Standard · avg. tenant</div>
+          </motion.div>
+        </div>
+        <motion.div key="hero-visual" initial={{ opacity: 0, scale: 0.96, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.9, ease: [0.16,1,0.3,1] }} className="relative">
+          <div key="glow" className="hero-glow" />
+          <motion.div key="mockup" style={{ y: floatY }} className="relative z-10"><DashMockup /></motion.div>
+          <motion.div key="pill1" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.1 }}
+            className="absolute -left-6 top-10 rounded-lg border border-slate-800 bg-slate-900/90 backdrop-blur px-3 py-2 text-xs shadow-xl z-20">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span className="font-mono text-slate-300">Account.pdf → s3://vastify/…</span>
+            </div>
+          </motion.div>
+          <motion.div key="pill2" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.3 }}
+            className="absolute -right-4 bottom-8 rounded-lg border border-slate-800 bg-slate-900/90 backdrop-blur px-3 py-2 text-xs shadow-xl z-20">
+            <div className="text-slate-400">Tier moved</div>
+            <div className="font-mono text-slate-100">STANDARD → COLDLINE</div>
+          </motion.div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+function Calculator() {
+  const [gb, setGb] = useState(500);
+  const sf = gb * 5, vf = gb * 0.023, saved = sf - vf;
+  const pct = Math.round((saved / Math.max(sf,1)) * 100);
+  const min = 10, max = 5000;
+  const pctPos = ((gb - min) / (max - min)) * 100;
+  return (
+    <section className="relative border-y border-slate-900 bg-slate-950">
+      <div className="max-w-7xl mx-auto px-6 py-20">
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.6 }} className="max-w-2xl">
+          <div className="text-xs uppercase tracking-[0.18em] text-brand-300 font-medium">Savings calculator</div>
+          <h2 className="mt-3 text-4xl md:text-5xl font-semibold tracking-[-0.02em] text-white">Move the slider. Watch Salesforce sweat.</h2>
+          <p className="mt-4 text-slate-400 text-lg">
+            Salesforce rate: <span className="font-mono text-slate-200">$5/GB/mo</span>. Vastify on S3 Standard: <span className="font-mono text-slate-200">$0.023/GB/mo</span>.
+          </p>
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.2 }} transition={{ duration: 0.7, delay: 0.1 }}
+          className="mt-10 rounded-2xl border border-slate-800 bg-slate-900/60 p-8 md:p-10">
+          <div className="flex items-end justify-between flex-wrap gap-4 mb-6">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-slate-400">Your Salesforce storage</div>
+              <div className="font-mono text-4xl font-semibold text-white mt-1">{gb.toLocaleString()} <span className="text-slate-500 text-2xl">GB</span></div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs uppercase tracking-wider text-slate-400">You save</div>
+              <div className="font-mono text-4xl font-semibold text-emerald-300 mt-1">
+                ${Math.round(saved).toLocaleString()}<span className="text-slate-500 text-lg">/mo</span>
+              </div>
+              <div className="text-xs text-slate-500 mt-1">{pct}% cheaper</div>
+            </div>
+          </div>
+          <input type="range" min={min} max={max} step={10} value={gb}
+            onChange={(e) => setGb(Number(e.target.value))}
+            className="vast-range" style={{ ['--pct']: `${pctPos}%` }} />
+          <div className="flex justify-between text-[11px] font-mono text-slate-500 mt-2">
+            <span>10 GB</span><span>1 TB</span><span>5 TB</span>
+          </div>
+          <div className="mt-8 grid md:grid-cols-2 gap-4">
+            <div className="rounded-xl border border-slate-800 bg-slate-950/50 p-5">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <span className="inline-block w-2 h-2 rounded-full bg-rose-500/80" /> Salesforce storage
+              </div>
+              <div className="mt-3 font-mono text-3xl md:text-4xl text-slate-200">
+                ${Math.round(sf).toLocaleString()}<span className="text-slate-500 text-base">/mo</span>
+              </div>
+              <div className="mt-1 text-xs text-slate-500">${(sf*12).toLocaleString()} per year</div>
+              <div className="mt-4 h-2 rounded-full bg-slate-800 overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-rose-500 to-rose-400" style={{ width: '100%' }} />
+              </div>
+            </div>
+            <div className="rounded-xl border border-brand-600/30 bg-gradient-to-br from-brand-600/10 to-slate-950/50 p-5 relative overflow-hidden">
+              <div className="flex items-center gap-2 text-xs text-slate-300">
+                <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" /> Vastify on S3 Standard
+              </div>
+              <div className="mt-3 font-mono text-3xl md:text-4xl text-white">
+                ${vf.toFixed(2)}<span className="text-slate-500 text-base">/mo</span>
+              </div>
+              <div className="mt-1 text-xs text-slate-500">${(vf*12).toFixed(2)} per year</div>
+              <div className="mt-4 h-2 rounded-full bg-slate-800 overflow-hidden">
+                <motion.div className="h-full bg-gradient-to-r from-brand-500 to-brand-300"
+                  animate={{ width: `${(vf/sf)*100}%` }}
+                  transition={{ type: 'spring', stiffness: 120, damping: 20 }} />
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" };
+function IconSync(){ return (<svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M21 12a9 9 0 0 1-15.5 6.3"/><path d="M3 12a9 9 0 0 1 15.5-6.3"/><polyline points="21 4 21 9 16 9"/><polyline points="3 20 3 15 8 15"/></svg>); }
+function IconShield(){ return (<svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg>); }
+function IconHistory(){ return (<svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M3 12a9 9 0 1 0 3-6.7"/><polyline points="3 4 3 10 9 10"/><path d="M12 7v5l4 2"/></svg>); }
+function IconGrid(){ return (<svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>); }
+function IconBucket(){ return (<svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><path d="M4 7h16l-2 13a2 2 0 0 1-2 1.7H8a2 2 0 0 1-2-1.7L4 7z"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/></svg>); }
+function IconApi(){ return (<svg width="20" height="20" viewBox="0 0 24 24" {...stroke}><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/><line x1="14" y1="4" x2="10" y2="20"/></svg>); }
+
+function FeaturesGrid() {
+  const items = [
+    { t: 'Automatic offload', d: 'Files and records sync continuously. Rules decide what moves, when, and to which tier — without touching end users.', i: <IconSync/> },
+    { t: 'Salesforce-native auth', d: 'Log in with your SF org via OAuth. Zero new credentials, zero new admins to manage. Scoped to profile.', i: <IconShield/> },
+    { t: 'Backup & restore', d: 'Point-in-time snapshots with field-level diff. Preview before you restore. Ship changes you can undo.', i: <IconHistory/> },
+    { t: 'Multi-tenant', d: 'One Vastify instance, unlimited Salesforce orgs. Per-tenant encryption keys and isolated buckets.', i: <IconGrid/> },
+    { t: 'Bring your own bucket', d: 'Use your own S3, GCS, Azure Blob, or MinIO — or let Vastify host it. Data never leaves your control.', i: <IconBucket/> },
+    { t: 'OData API', d: 'Query archived records from Salesforce as external objects. Reports, list views, related lists — they all still work.', i: <IconApi/> },
+  ];
+  return (
+    <section className="relative">
+      <div className="max-w-7xl mx-auto px-6 py-24">
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.6 }} className="max-w-2xl">
+          <div className="text-xs uppercase tracking-[0.18em] text-brand-300 font-medium">What's inside</div>
+          <h2 className="mt-3 text-4xl md:text-5xl font-semibold tracking-[-0.02em] text-white">Boring to operate. Ridiculous to skip.</h2>
+          <p className="mt-4 text-slate-400 text-lg">Everything you need to retire Salesforce's storage bill without retiring a single workflow.</p>
+        </motion.div>
+        <div className="mt-14 grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {items.map((f, i) => (
+            <motion.div key={f.t}
+              initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.55, delay: i * 0.08, ease: [0.16,1,0.3,1] }}
+              className="group rounded-xl border border-slate-800 bg-slate-900/60 p-6 hover:border-brand-600/40 hover:bg-slate-900/80 transition">
+              <div className="w-10 h-10 rounded-lg bg-brand-600/10 border border-brand-600/30 text-brand-300 flex items-center justify-center mb-5 group-hover:bg-brand-600/20 transition">{f.i}</div>
+              <div className="text-lg font-semibold text-slate-100">{f.t}</div>
+              <p className="mt-2 text-sm text-slate-400 leading-relaxed">{f.d}</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SocialProof() {
+  const badges = [
+    { t: 'Salesforce Partner', s: 'AppExchange verified' },
+    { t: 'AWS Partner', s: 'Advanced Tier · Storage' },
+    { t: 'Google Cloud Ready', s: 'SaaS · Validated' },
+    { t: 'SOC 2 Type II', s: 'Audited annually' },
+  ];
+  return (
+    <section className="border-y border-slate-900 bg-slate-950/60">
+      <div className="max-w-7xl mx-auto px-6 py-12">
+        <div className="text-center text-xs uppercase tracking-[0.18em] text-slate-500 mb-6">Trusted platforms · certified integrations</div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {badges.map(b => (
+            <div key={b.t} className="rounded-lg border border-slate-800 bg-slate-900/40 px-4 py-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-md bg-slate-800/80 border border-slate-700 flex items-center justify-center text-slate-400">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2l9 4-9 4-9-4 9-4z"/><path d="M3 10l9 4 9-4"/><path d="M3 14l9 4 9-4"/>
+                </svg>
+              </div>
+              <div>
+                <div className="text-sm font-medium text-slate-200">{b.t}</div>
+                <div className="text-[11px] text-slate-500">{b.s}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Pricing() {
+  const plans = [
+    { name: 'Starter', price: '$99', note: 'per month', tag: 'For small orgs',
+      features: ['Up to 100 GB offloaded','1 Salesforce org','S3 / GCS / MinIO','Daily snapshots','Email support'],
+      cta: 'Start free trial', highlight: false },
+    { name: 'Growth', price: '$499', note: 'per month', tag: 'Recommended',
+      features: ['Up to 2 TB offloaded','5 Salesforce orgs','Hot + cold tier routing','Field-level diff & restore','OData API','Priority support'],
+      cta: 'Start free trial', highlight: true },
+    { name: 'Enterprise', price: 'Custom', note: 'annual', tag: 'For large orgs',
+      features: ['Unlimited storage','Unlimited orgs','Bring-your-own-bucket, KMS','Private networking','SSO + SCIM','Dedicated SE & 24/7 SLA'],
+      cta: 'Talk to sales', highlight: false },
+  ];
+  return (
+    <section id="pricing" className="relative">
+      <div className="max-w-7xl mx-auto px-6 py-24">
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.6 }} className="text-center max-w-2xl mx-auto">
+          <div className="text-xs uppercase tracking-[0.18em] text-brand-300 font-medium">Pricing</div>
+          <h2 className="mt-3 text-4xl md:text-5xl font-semibold tracking-[-0.02em] text-white">Priced per terabyte, not per panic.</h2>
+          <p className="mt-4 text-slate-400 text-lg">All plans include unlimited backups, every storage class, and the dashboard.</p>
+        </motion.div>
+        <div className="mt-14 grid md:grid-cols-3 gap-5">
+          {plans.map((p, i) => {
+            const inner = (
+              <motion.div
+                initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.25 }}
+                transition={{ duration: 0.6, delay: i * 0.1, ease: [0.16,1,0.3,1] }}
+                className={`rounded-xl ${p.highlight ? '' : 'border border-slate-800 bg-slate-900/60'} p-7 flex flex-col h-full`}>
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium text-slate-200">{p.name}</div>
+                  {p.highlight
+                    ? <span className="text-[10px] uppercase tracking-wider font-semibold text-brand-300 bg-brand-600/10 border border-brand-600/30 rounded-full px-2 py-0.5">{p.tag}</span>
+                    : <span className="text-xs text-slate-500">{p.tag}</span>}
+                </div>
+                <div className="mt-5 flex items-baseline gap-2">
+                  <div className="font-mono text-5xl font-semibold text-white">{p.price}</div>
+                  <div className="text-sm text-slate-500">{p.note}</div>
+                </div>
+                <ul className="mt-6 space-y-3 text-sm text-slate-300 flex-1">
+                  {p.features.map(f => (
+                    <li key={f} className="flex gap-2.5">
+                      <svg className="shrink-0 mt-0.5 text-brand-300" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <a href="/login" className={`mt-8 rounded-lg font-medium py-2.5 text-center transition ${p.highlight ? 'bg-brand-600 hover:bg-brand-700 text-white' : 'border border-slate-700 hover:border-slate-600 text-slate-200 hover:bg-slate-800/60'}`}>{p.cta}</a>
+              </motion.div>
+            );
+            return p.highlight
+              ? <div key={p.name} className="shimmer-wrap">{inner}</div>
+              : <div key={p.name}>{inner}</div>;
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Landing() {
+  return (
+    <div className="min-h-screen">
+      <Hero/>
+      <Calculator/>
+      <FeaturesGrid/>
+      <SocialProof/>
+      <Pricing/>
+      <Footer/>
+    </div>
+  );
+}
+
+function PartnersHero() {
+  const o1 = useMotionValue(0), o2 = useMotionValue(0), o3 = useMotionValue(0);
+  useEffect(() => {
+    const a = animate(o1, [0, 1], { duration: 14, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut' });
+    const b = animate(o2, [0, 1], { duration: 18, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut' });
+    const c = animate(o3, [0, 1], { duration: 22, repeat: Infinity, repeatType: 'mirror', ease: 'easeInOut' });
+    return () => { a.stop(); b.stop(); c.stop(); };
+  }, []);
+  const x1 = useTransform(o1, [0, 1], [-80, 60]);
+  const y1 = useTransform(o1, [0, 1], [-40, 30]);
+  const x2 = useTransform(o2, [0, 1], [60, -40]);
+  const y2 = useTransform(o2, [0, 1], [80, -20]);
+  const x3 = useTransform(o3, [0, 1], [0, 120]);
+  const y3 = useTransform(o3, [0, 1], [40, 120]);
+  return (
+    <section className="relative overflow-hidden">
+      <motion.div style={{ x: x1, y: y1, background: '#2563eb' }} className="orb w-[520px] h-[520px] top-[-160px] left-[-80px]" />
+      <motion.div style={{ x: x2, y: y2, background: '#7c3aed' }} className="orb w-[420px] h-[420px] top-[120px] right-[-60px]" />
+      <motion.div style={{ x: x3, y: y3, background: '#06b6d4' }} className="orb w-[380px] h-[380px] top-[260px] left-[40%]" />
+      <div className="absolute inset-0 grid-bg pointer-events-none" />
+      <div className="max-w-7xl mx-auto px-6 pt-24 pb-20 relative">
+        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
+          className="inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/60 px-3 py-1 text-xs text-slate-300">
+          <span className="w-1.5 h-1.5 rounded-full bg-brand-400" />
+          For Systems Integrators, ISVs, and resellers
+        </motion.div>
+        <motion.h1 initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.05 }}
+          className="mt-6 text-5xl md:text-6xl lg:text-7xl font-semibold tracking-[-0.03em] text-white leading-[1.0]">
+          Build on Vastify.
+        </motion.h1>
+        <motion.p initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.12 }}
+          className="mt-6 text-lg md:text-xl text-slate-300 max-w-2xl">
+          A platform you can ship on top of. Earn recurring revenue reselling Vastify, embed our offload engine in your product, or white-label the whole dashboard.
+        </motion.p>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.3 }}
+          className="mt-10 flex flex-wrap items-stretch gap-6 text-sm text-slate-400">
+          <Stat label="partners worldwide" value="120+" />
+          <div className="w-px bg-slate-800" />
+          <Stat label="avg. deal size" value="$42k" />
+          <div className="w-px bg-slate-800" />
+          <Stat label="referral payout" value="up to 30%" />
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+function Stat({ label, value }) {
+  return (
+    <div>
+      <div className="font-mono text-2xl font-semibold text-white">{value}</div>
+      <div className="text-xs uppercase tracking-wider text-slate-500">{label}</div>
+    </div>
+  );
+}
+
+function TierCard({ tier, index }) {
+  const [flipped, setFlipped] = useState(false);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 28 }} whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.25 }}
+      transition={{ duration: 0.6, delay: index * 0.1, ease: [0.16,1,0.3,1] }}
+      className="flip-scene cursor-pointer"
+      style={{ height: 440 }}
+      onClick={() => setFlipped(v => !v)}>
+      <div className={`flip-card ${flipped ? 'is-flipped' : ''}`}>
+        <div className="flip-face front rounded-2xl border border-slate-800 bg-slate-900/60 p-7 flex flex-col overflow-hidden relative">
+          <div className="absolute -top-24 -right-24 w-64 h-64 rounded-full blur-3xl opacity-60" style={{ background: tier.glow }} />
+          <div className="relative">
+            <div className={`inline-block text-xs font-semibold tracking-[0.2em] uppercase bg-gradient-to-r ${tier.accent} bg-clip-text text-transparent`}>{tier.name}</div>
+            <div className="mt-2 text-2xl font-semibold text-white leading-tight">{tier.summary}</div>
+          </div>
+          <ul className="mt-6 space-y-3 text-sm text-slate-300 flex-1 relative">
+            {tier.perks.map(p => (
+              <li key={p} className="flex gap-2.5">
+                <svg className="shrink-0 mt-0.5 text-brand-300" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                {p}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-6 flex items-center justify-between text-xs text-slate-500 relative">
+            <span>Hover for full benefits</span>
+            <span className="font-mono">↻</span>
+          </div>
+        </div>
+        <div className="flip-face back rounded-2xl border border-brand-600/40 bg-gradient-to-br from-slate-900 to-slate-950 p-7 flex flex-col overflow-hidden">
+          <div className={`inline-block text-xs font-semibold tracking-[0.2em] uppercase bg-gradient-to-r ${tier.accent} bg-clip-text text-transparent`}>{tier.name} · Benefits</div>
+          <ul className="mt-4 space-y-3.5 text-sm flex-1">
+            {tier.detail.map(d => (
+              <li key={d.t}>
+                <div className="text-slate-100 font-medium">{d.t}</div>
+                <div className="text-slate-400 text-[13px] leading-relaxed">{d.d}</div>
+              </li>
+            ))}
+          </ul>
+          <a href="#apply" onClick={(e) => e.stopPropagation()} className="mt-5 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium py-2.5 text-center transition">Apply for {tier.name}</a>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function PartnerTiers() {
+  const tiers = [
+    { name: 'Silver', accent: 'from-slate-500 to-slate-300', glow: 'rgba(148,163,184,0.35)',
+      summary: 'For advisors starting to refer Vastify.',
+      perks: ['Referral link + tracked commissions','10% recurring revenue share','Co-marketing assets'],
+      detail: [
+        { t: 'Referrals', d: 'Trackable link + quarterly payout via Stripe.' },
+        { t: 'Rev share', d: '10% of net recurring for 24 months.' },
+        { t: 'Enablement', d: 'Pitch deck, logos, case study templates.' },
+        { t: 'Support', d: 'Partner Slack channel, community tier.' },
+      ] },
+    { name: 'Gold', accent: 'from-amber-300 to-yellow-500', glow: 'rgba(251,191,36,0.35)',
+      summary: 'For implementation partners running real engagements.',
+      perks: ['Dedicated Solutions Engineer','20% rev share + implementation fees','Joint case studies'],
+      detail: [
+        { t: 'Dedicated SE', d: 'A Vastify engineer on your implementations.' },
+        { t: 'Rev share', d: '20% recurring for lifetime of account.' },
+        { t: 'Joint marketing', d: 'Shared webinars, featured on vastify.io/partners.' },
+        { t: 'Priority support', d: '2-hour response, weekday escalation.' },
+      ] },
+    { name: 'Platinum', accent: 'from-brand-400 to-brand-700', glow: 'rgba(37,99,235,0.55)',
+      summary: 'For ISVs and large SIs embedding Vastify.',
+      perks: ['White-label dashboard + API','Custom commercial terms','Executive sponsor & QBRs'],
+      detail: [
+        { t: 'White-label', d: 'Your brand, your domain, our engine.' },
+        { t: 'Custom pricing', d: 'Volume tiers, private Marketplace offers.' },
+        { t: 'Executive sponsor', d: 'Direct line to VP Partnerships.' },
+        { t: 'QBRs', d: 'Quarterly roadmap + growth reviews with product.' },
+      ] },
+  ];
+  return (
+    <section className="relative">
+      <div className="max-w-7xl mx-auto px-6 py-20">
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.6 }} className="max-w-2xl">
+          <div className="text-xs uppercase tracking-[0.18em] text-brand-300 font-medium">Tiers</div>
+          <h2 className="mt-3 text-4xl md:text-5xl font-semibold tracking-[-0.02em] text-white">Pick the level that fits your practice.</h2>
+          <p className="mt-4 text-slate-400 text-lg">Hover or tap a card to see the full benefit list. You can move between tiers any time.</p>
+        </motion.div>
+        <div className="mt-14 grid md:grid-cols-3 gap-5">
+          {tiers.map((t, i) => <TierCard key={t.name} tier={t} index={i} />)}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <label className="block">
+      <div className="text-xs uppercase tracking-wider text-slate-400 mb-2">{label}</div>
+      {children}
+    </label>
+  );
+}
+
+function PartnerApplication() {
+  const [state, setState] = useState('idle');
+  const [form, setForm] = useState({ company: '', email: '', tier: 'Gold', message: '' });
+  function submit(e) {
+    e.preventDefault();
+    if (state !== 'idle') return;
+    setState('loading');
+    setTimeout(() => setState('done'), 1600);
+  }
+  return (
+    <section id="apply" className="relative">
+      <div className="max-w-5xl mx-auto px-6 py-20">
+        <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.6 }}
+          className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden grid md:grid-cols-[1fr_1.2fr]">
+          <div className="p-8 md:p-10 border-b md:border-b-0 md:border-r border-slate-800 bg-gradient-to-br from-brand-600/10 to-transparent">
+            <div className="text-xs uppercase tracking-[0.18em] text-brand-300 font-medium">Apply</div>
+            <h3 className="mt-3 text-3xl font-semibold text-white tracking-tight">Become a Vastify partner.</h3>
+            <p className="mt-4 text-slate-400">We review every application within 2 business days. No gotchas — if you have Salesforce customers, there's a tier that fits.</p>
+            <ul className="mt-8 space-y-3 text-sm text-slate-300">
+              {['Real rev share, paid monthly','Technical enablement & sandbox orgs','Co-sell motion with our AEs'].map(i => (
+                <li key={i} className="flex gap-2.5">
+                  <svg className="shrink-0 mt-0.5 text-brand-300" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  {i}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <form onSubmit={submit} className="p-8 md:p-10 space-y-5">
+            <Field label="Company name">
+              <input required value={form.company} onChange={e=>setForm({...form, company:e.target.value})}
+                className="w-full rounded-lg bg-slate-950/60 border border-slate-800 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/30 outline-none px-3 py-2.5 text-sm text-white placeholder:text-slate-600 transition"
+                placeholder="Acme Systems Inc." />
+            </Field>
+            <Field label="Contact email">
+              <input required type="email" value={form.email} onChange={e=>setForm({...form, email:e.target.value})}
+                className="w-full rounded-lg bg-slate-950/60 border border-slate-800 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/30 outline-none px-3 py-2.5 text-sm text-white placeholder:text-slate-600 transition"
+                placeholder="partnerships@acme.com" />
+            </Field>
+            <Field label="Tier">
+              <div className="grid grid-cols-3 gap-2">
+                {['Silver','Gold','Platinum'].map(t => (
+                  <button key={t} type="button" onClick={()=>setForm({...form, tier:t})}
+                    className={`rounded-lg border px-3 py-2 text-sm transition ${form.tier===t ? 'border-brand-600 bg-brand-600/15 text-white' : 'border-slate-800 text-slate-400 hover:border-slate-700'}`}>{t}</button>
+                ))}
+              </div>
+            </Field>
+            <Field label="Tell us about your practice">
+              <textarea rows={4} value={form.message} onChange={e=>setForm({...form, message:e.target.value})}
+                className="w-full rounded-lg bg-slate-950/60 border border-slate-800 focus:border-brand-600 focus:ring-2 focus:ring-brand-600/30 outline-none px-3 py-2.5 text-sm text-white placeholder:text-slate-600 transition resize-none"
+                placeholder="How many Salesforce customers do you support? Which clouds do you use?" />
+            </Field>
+            <motion.button
+              whileTap={state==='idle' ? { scale: 0.97 } : {}}
+              disabled={state !== 'idle'}
+              type="submit"
+              className={`w-full rounded-lg font-medium py-3 text-sm transition flex items-center justify-center gap-2 ${state==='done' ? 'bg-emerald-600 text-white' : 'bg-brand-600 hover:bg-brand-700 text-white'} disabled:opacity-90`}>
+              <AnimatePresence mode="wait" initial={false}>
+                {state === 'idle' && <motion.span key="i" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>Submit application</motion.span>}
+                {state === 'loading' && (
+                  <motion.span key="l" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="flex items-center gap-2">
+                    <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.55"/></svg>
+                    Reviewing…
+                  </motion.span>
+                )}
+                {state === 'done' && (
+                  <motion.span key="d" initial={{opacity:0, y:6}} animate={{opacity:1, y:0}} exit={{opacity:0}} className="flex items-center gap-2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    Submitted — we'll be in touch
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </motion.button>
+            <p className="text-[11px] text-slate-500">By submitting, you agree to our Partner Program Terms.</p>
+          </form>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+function PartnerTestimonials() {
+  const quotes = [
+    { q: "Vastify let us offer a 'cut your Salesforce bill in half' promise and actually keep it. Our close rate on renewals jumped 22%.", a: "Priya Shah", r: "Managing Partner, Altus Cloud Systems" },
+    { q: "We white-labeled the dashboard in two weeks. Our customers don't know it isn't ours — and we don't miss the engineering cost.", a: "Marcus Leduc", r: "CTO, Northwave ISV" },
+    { q: "The rev share is the most honest I've seen in this space. Paid on time, monthly, no clawbacks after month two.", a: "Sofia Reyes", r: "Channel Lead, BrightArrow Consulting" },
+  ];
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setI(v => (v + 1) % quotes.length), 5500);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <section className="relative">
+      <div className="max-w-4xl mx-auto px-6 py-20 text-center">
+        <div className="text-xs uppercase tracking-[0.18em] text-brand-300 font-medium">What partners say</div>
+        <div className="relative h-[260px] md:h-[220px] mt-6">
+          <AnimatePresence mode="wait">
+            <motion.div key={i}
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.6 }}
+              className="absolute inset-0 flex flex-col items-center justify-center">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="text-brand-400 mb-5"><path d="M7 11a4 4 0 0 1 4-4V5a6 6 0 0 0-6 6v8h6v-8H7zm10 0a4 4 0 0 1 4-4V5a6 6 0 0 0-6 6v8h6v-8h-4z"/></svg>
+              <blockquote className="text-xl md:text-2xl text-slate-100 leading-relaxed max-w-3xl font-medium">"{quotes[i].q}"</blockquote>
+              <div className="mt-6 text-sm text-slate-400">
+                <span className="text-slate-200 font-medium">{quotes[i].a}</span> · {quotes[i].r}
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+        <div className="flex justify-center gap-2">
+          {quotes.map((_, idx) => (
+            <button key={idx} onClick={() => setI(idx)} className={`h-1.5 rounded-full transition-all ${idx===i ? 'bg-brand-500 w-8' : 'bg-slate-700 hover:bg-slate-600 w-3'}`} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Partners() {
+  return (
+    <div className="min-h-screen">
+      <PartnersHero/>
+      <PartnerTiers/>
+      <PartnerApplication/>
+      <PartnerTestimonials/>
+      <Footer/>
+    </div>
+  );
+}
+
+function App() {
+  const [route] = useHashRoute();
+  useEffect(() => { window.scrollTo({ top: 0 }); }, [route]);
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <TopNav route={route} />
+      {route === '/partners' ? <Partners/> : <Landing/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
