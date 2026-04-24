@@ -43,7 +43,7 @@ dashboard/.vite/
 dashboard/vite.config.d.ts
 dashboard/vite.config.js
 
-# API static assets (built by Vite)
+# API static build output
 api/public/
 
 # Git worktrees

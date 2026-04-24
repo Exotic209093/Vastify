@@ -1,9 +1,10 @@
 import { Hono } from 'hono';
-import { createCipheriv, randomBytes, type CipherGCM } from 'node:crypto';
+import { createCipheriv, randomBytes, randomUUID, type CipherGCM } from 'node:crypto';
 import { requireApiKey, requireAdmin, tenantOf } from '../auth/api-key.ts';
 import { getDb } from '../db/client.ts';
 import { createAuthRepo, type TenantStorageConfig } from '../auth/repo.ts';
 import { loadConfig } from '../config.ts';
+import { hashApiKey } from '../db/hash.ts';
 
 export const settingsRoutes = new Hono();
 
@@ -92,4 +93,13 @@ settingsRoutes.put('/storage', requireAdmin, async (c) => {
 
   repo.storageConfig.upsert(updated);
   return c.json(storageConfigResponse(updated));
+});
+
+// POST /v1/settings/api-key — regenerate API key, returns plaintext once (admin only)
+settingsRoutes.post('/api-key', requireAdmin, async (c) => {
+  const tenantId = tenantOf(c);
+  const newKey = `vastify_${randomUUID().replace(/-/g, '')}`;
+  const hash = await hashApiKey(newKey);
+  getDb().prepare('UPDATE tenants SET api_key_hash = ? WHERE id = ?').run(hash, tenantId);
+  return c.json({ apiKey: newKey }, 201);
 });
