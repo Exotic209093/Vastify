@@ -46,5 +46,8 @@ dashboard/vite.config.js
 # API static build output
 api/public/
 
+# Local secrets (never commit)
+.env.docker
+
 # Git worktrees
 .worktrees/

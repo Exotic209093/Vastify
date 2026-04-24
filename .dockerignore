@@ -1,0 +1,16 @@
+node_modules
+*/node_modules
+.worktrees
+.minio-data
+*.db
+*.db-wal
+*.db-shm
+.env
+.env.local
+api/public
+dashboard/dist
+.git
+docs
+reference
+salesforce
+scripts
