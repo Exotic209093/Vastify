@@ -1,11 +1,216 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, GitCommit, RefreshCw } from 'lucide-react';
+import { ArrowLeft, GitCommit, RefreshCw, Sparkles, CheckCircle2, AlertTriangle, XCircle, Loader2 } from 'lucide-react';
 import { Card, CardBody, CardHeader } from '../components/Card';
 import { getSnapshot, listOrgs, buildDiff, getDiffPlan, triggerRestore, getRestoreJob } from '../lib/backup-api';
 import type { DiffPlan } from '../lib/backup-api';
+import { api } from '../lib/api';
 import { relativeTime, bytes } from '../lib/format';
+
+/* ─── Diff Explainer (AI) ─────────────────────────────────────────────── */
+
+interface EntityExplanation {
+  objectName: string;
+  verdict: 'safe' | 'review' | 'skip';
+  reasoning: string;
+  insertCount: number;
+  updateCount: number;
+  skipDeleteCount: number;
+}
+
+interface DiffExplanation {
+  summary: string;
+  overallVerdict: 'safe' | 'review' | 'skip';
+  entities: EntityExplanation[];
+  warnings: string[];
+}
+
+const VERDICT_META = {
+  safe: {
+    label: 'Safe to restore',
+    color: 'emerald',
+    icon: CheckCircle2,
+    bg: 'bg-emerald-900/20 border-emerald-800/50',
+    pill: 'bg-emerald-500',
+    text: 'text-emerald-300',
+  },
+  review: {
+    label: 'Needs review',
+    color: 'amber',
+    icon: AlertTriangle,
+    bg: 'bg-amber-900/20 border-amber-800/50',
+    pill: 'bg-amber-500',
+    text: 'text-amber-300',
+  },
+  skip: {
+    label: 'Skip — do not restore',
+    color: 'red',
+    icon: XCircle,
+    bg: 'bg-red-900/20 border-red-800/50',
+    pill: 'bg-red-500',
+    text: 'text-red-300',
+  },
+} as const;
+
+function DiffExplainer({ planId }: { planId: string }) {
+  const [explanation, setExplanation] = useState<DiffExplanation | null>(null);
+
+  const explain = useMutation({
+    mutationFn: async () => {
+      const res = await api<{ explanation: DiffExplanation }>('/v1/agents/explain-diff', {
+        json: { planId },
+      });
+      return res.explanation;
+    },
+    onSuccess: (exp) => setExplanation(exp),
+  });
+
+  const grouped = explanation
+    ? {
+        safe: explanation.entities.filter((e) => e.verdict === 'safe'),
+        review: explanation.entities.filter((e) => e.verdict === 'review'),
+        skip: explanation.entities.filter((e) => e.verdict === 'skip'),
+      }
+    : null;
+
+  return (
+    <Card className="border-amber-900/30">
+      <CardHeader
+        title="AI Diff Explainer"
+        subtitle="Claude reads the diff and tells you what's safe to restore"
+        right={
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-700/40 bg-amber-900/20 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-amber-200">
+            <Sparkles size={10} />
+            Opus 4.7
+          </div>
+        }
+      />
+      <CardBody className="space-y-4">
+        {!explanation && !explain.isPending && (
+          <button
+            onClick={() => explain.mutate()}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-amber-600 hover:bg-amber-500 text-white px-4 py-2.5 text-sm font-medium shadow-lg shadow-amber-900/40 transition"
+          >
+            <Sparkles size={14} />
+            Explain this diff
+          </button>
+        )}
+
+        {explain.isPending && (
+          <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-400">
+            <Loader2 size={14} className="animate-spin" />
+            Claude is analysing {/* could show count */}…
+          </div>
+        )}
+
+        {explain.isError && (
+          <div className="rounded-md border border-red-800/50 bg-red-900/20 p-3 text-xs text-red-200">
+            Failed to generate explanation: {(explain.error as Error).message}
+          </div>
+        )}
+
+        {explanation && grouped && (
+          <>
+            {/* Overall summary */}
+            <div className="rounded-md border border-slate-700 bg-slate-800/40 p-4">
+              <div className="text-xs uppercase tracking-wider text-slate-400 mb-2">
+                Claude's verdict
+              </div>
+              <p className="text-sm text-slate-100 leading-relaxed">{explanation.summary}</p>
+            </div>
+
+            {/* Headline counts (matches the storyboard frame IV: 12 / 3 / 1) */}
+            <div className="grid grid-cols-3 gap-3">
+              {(['safe', 'review', 'skip'] as const).map((v) => {
+                const count = grouped[v].reduce(
+                  (sum, e) => sum + e.insertCount + e.updateCount + e.skipDeleteCount,
+                  0,
+                );
+                const meta = VERDICT_META[v];
+                const Icon = meta.icon;
+                return (
+                  <div key={v} className={`rounded-md border p-3 ${meta.bg}`}>
+                    <div className={`flex items-center gap-1.5 text-xs font-medium ${meta.text}`}>
+                      <Icon size={12} />
+                      {meta.label}
+                    </div>
+                    <div className="mt-1 font-mono text-3xl font-semibold text-slate-100">
+                      {count}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Per-entity reasoning */}
+            <div className="space-y-2">
+              {(['safe', 'review', 'skip'] as const).map((v) =>
+                grouped[v].map((e) => {
+                  const meta = VERDICT_META[v];
+                  const Icon = meta.icon;
+                  const total = e.insertCount + e.updateCount + e.skipDeleteCount;
+                  return (
+                    <div
+                      key={`${v}-${e.objectName}`}
+                      className={`rounded-md border p-3 ${meta.bg}`}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <Icon size={14} className={`${meta.text} mt-0.5 shrink-0`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <div className="text-sm font-medium text-slate-100">
+                              {e.objectName}
+                            </div>
+                            <div className="text-xs text-slate-400 font-mono shrink-0">
+                              {total} {total === 1 ? 'change' : 'changes'}
+                            </div>
+                          </div>
+                          <p className="mt-1.5 text-xs text-slate-300 leading-relaxed">
+                            {e.reasoning}
+                          </p>
+                          <div className="mt-2 flex gap-3 text-[11px] text-slate-500 font-mono">
+                            {e.insertCount > 0 && <span>+{e.insertCount} insert</span>}
+                            {e.updateCount > 0 && <span>~{e.updateCount} update</span>}
+                            {e.skipDeleteCount > 0 && <span>−{e.skipDeleteCount} skip-delete</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }),
+              )}
+            </div>
+
+            {explanation.warnings.length > 0 && (
+              <div className="rounded-md border border-amber-800/50 bg-amber-900/20 p-3 space-y-1.5">
+                <div className="text-xs font-medium text-amber-200 flex items-center gap-1.5">
+                  <AlertTriangle size={12} />
+                  Warnings
+                </div>
+                {explanation.warnings.map((w, i) => (
+                  <p key={i} className="text-xs text-amber-100/80 leading-relaxed">
+                    {w}
+                  </p>
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                setExplanation(null);
+                explain.reset();
+              }}
+              className="text-xs text-slate-400 hover:text-slate-200 underline"
+            >
+              Clear & re-run
+            </button>
+          </>
+        )}
+      </CardBody>
+    </Card>
+  );
+}
 
 function RestorePanel({ snapshotId, diffPlan }: { snapshotId: string; diffPlan: DiffPlan }) {
   const [jobId, setJobId] = useState<string | null>(null);
@@ -215,7 +420,10 @@ export default function SnapshotDetail() {
       )}
 
       {diffPlan && snap.status === 'complete' && (
-        <RestorePanel snapshotId={snap.id} diffPlan={diffPlan} />
+        <>
+          <DiffExplainer planId={diffPlan.id} />
+          <RestorePanel snapshotId={snap.id} diffPlan={diffPlan} />
+        </>
       )}
     </div>
   );

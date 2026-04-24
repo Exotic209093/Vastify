@@ -11,6 +11,8 @@ import { backupRoutes } from './backup/routes.ts';
 import { authRoutes } from './auth/routes.ts';
 import { teamRoutes } from './team/routes.ts';
 import { settingsRoutes } from './settings/routes.ts';
+import { setupAgentRoutes } from './agents/setup/routes.ts';
+import { diffExplainerRoutes } from './agents/diff-explainer/routes.ts';
 import { log } from './util/logger.ts';
 
 const config = loadConfig();
@@ -51,6 +53,8 @@ app.route('/v1/rules', rulesRoutes);
 app.route('/v1/backup', backupRoutes);
 app.route('/v1/team', teamRoutes);
 app.route('/v1/settings', settingsRoutes);
+app.route('/v1/agents/setup', setupAgentRoutes);
+app.route('/v1/agents', diffExplainerRoutes);
 app.route('/odata/v1', odataRoutes);
 
 // Static files — React SPA build output

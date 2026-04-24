@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate, NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Files, Database, Sliders,
-  HardDrive, Settings as SettingsIcon, Users, LogOut,
+  HardDrive, Settings as SettingsIcon, Users, LogOut, Sparkles,
 } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -15,9 +15,11 @@ import Backups from './pages/Backups';
 import SnapshotDetail from './pages/SnapshotDetail';
 import Settings from './pages/Settings';
 import Team from './pages/Team';
+import SetupAgent from './pages/SetupAgent';
 
 const mainNav = [
   { to: '/dashboard', label: 'Overview', icon: LayoutDashboard },
+  { to: '/dashboard/setup', label: 'Setup Agent', icon: Sparkles },
   { to: '/dashboard/files', label: 'Files', icon: Files },
   { to: '/dashboard/records', label: 'Records', icon: Database },
   { to: '/dashboard/rules', label: 'Rules', icon: Sliders },
@@ -103,6 +105,7 @@ function Layout() {
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Overview />} />
+          <Route path="/dashboard/setup" element={<SetupAgent />} />
           <Route path="/dashboard/files" element={<FilesPage />} />
           <Route path="/dashboard/records" element={<RecordsPage />} />
           <Route path="/dashboard/rules" element={<RulesPage />} />

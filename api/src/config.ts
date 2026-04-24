@@ -21,6 +21,8 @@ export interface AppConfig {
   hsClientSecret: string;
   jwtSecret: string;
   sfRedirectUri: string;
+  anthropicApiKey: string;
+  anthropicModel: string;
 }
 
 function bool(key: string, fallback = false): boolean {
@@ -90,5 +92,7 @@ export function loadConfig(): AppConfig {
     hsClientSecret: str('HS_CLIENT_SECRET', ''),
     jwtSecret: str('JWT_SECRET', 'dev-secret-change-me-in-production-min-32-chars'),
     sfRedirectUri: str('SF_REDIRECT_URI', 'http://localhost:3000/auth/salesforce/callback'),
+    anthropicApiKey: str('ANTHROPIC_API_KEY', ''),
+    anthropicModel: str('ANTHROPIC_MODEL', 'claude-opus-4-7'),
   };
 }

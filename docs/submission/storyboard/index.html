@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vastify — Storyboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,200..900,0..100,0..1&family=Geist:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap"
+  rel="stylesheet"
+/>
+<style>
+  /* ---------- TOKENS ---------- */
+  :root {
+    --ink: #1A1410;
+    --ink-soft: #4A3F36;
+    --ink-mute: #8A7C6E;
+    --paper: #FAF6EE;
+
+    --accent-savings: #1F4D3F;
+    --accent-warn: #A8553B;
+    --accent-caution: #9B7C3F;
+
+    --safe: #2F6B4F;
+    --review: #B07B2C;
+    --skip: #9B3A2C;
+
+    /* Per-frame gradient variables overridden by .frame--N */
+    --bg-1: #F4ECDF;
+    --bg-2: #F1DFDB;
+    --bg-3: #EADDC8;
+
+    --serif: 'Fraunces', 'Times New Roman', serif;
+    --sans: 'Geist', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', 'Menlo', monospace;
+  }
+
+  /* ---------- RESET ---------- */
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background: var(--paper);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "ss01", "ss02", "kern";
+  }
+  a { color: inherit; text-decoration: none; }
+  ::selection { background: var(--ink); color: var(--paper); }
+
+  /* ---------- FRAME SHELL ---------- */
+  .deck {
+    scroll-snap-type: y mandatory;
+    height: 100vh;
+    overflow-y: scroll;
+  }
+
+  .frame {
+    position: relative;
+    min-height: 100vh;
+    width: 100%;
+    display: grid;
+    place-items: center;
+    padding: 6vh 8vw;
+    scroll-snap-align: start;
+    overflow: hidden;
+    background:
+      radial-gradient(80% 110% at 80% 0%, var(--bg-2) 0%, transparent 55%),
+      radial-gradient(70% 100% at 0% 100%, var(--bg-3) 0%, transparent 60%),
+      linear-gradient(180deg, var(--bg-1) 0%, var(--bg-1) 100%);
+  }
+
+  /* Grain overlay */
+  .frame::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    pointer-events: none;
+    mix-blend-mode: multiply;
+    opacity: 0.55;
+    z-index: 1;
+  }
+
+  .frame__inner {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 1280px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  /* ---------- CHROME (corners) ---------- */
+  .chrome {
+    position: absolute;
+    inset: 0;
+    padding: 5vh 6vw;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto 1fr auto;
+    pointer-events: none;
+    z-index: 3;
+  }
+  .chrome > * { pointer-events: auto; }
+  .chrome__numeral {
+    grid-column: 1; grid-row: 1;
+    font-family: var(--serif);
+    font-weight: 300;
+    font-style: italic;
+    font-size: 28px;
+    color: var(--ink);
+    letter-spacing: 0.04em;
+  }
+  .chrome__pill {
+    grid-column: 2; grid-row: 1;
+    justify-self: end;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px 8px 12px;
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(26,20,16,0.08);
+    border-radius: 999px;
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .chrome__pill::before {
+    content: "";
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--pill-color, var(--accent-savings));
+  }
+  .chrome__brand {
+    grid-column: 1; grid-row: 3;
+    align-self: end;
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 16px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .chrome__brand sup {
+    font-family: var(--sans);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    color: var(--ink-mute);
+    margin-left: 6px;
+    vertical-align: super;
+  }
+  .chrome__counter {
+    grid-column: 2; grid-row: 3;
+    justify-self: end;
+    align-self: end;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--ink-mute);
+  }
+  .chrome__counter strong {
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  /* ---------- CONTENT TYPOGRAPHY ---------- */
+  .eyebrow {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 28px 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 32px;
+    height: 1px;
+    background: var(--ink-soft);
+  }
+
+  .display {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: clamp(72px, 11vw, 168px);
+    line-height: 0.92;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    margin: 0 0 36px 0;
+    font-variation-settings: "opsz" 144, "SOFT" 30, "WONK" 0;
+  }
+  .display em {
+    font-style: italic;
+    font-weight: 300;
+    font-variation-settings: "opsz" 144, "SOFT" 100;
+  }
+  .display .unit {
+    font-family: var(--sans);
+    font-weight: 300;
+    font-size: 0.32em;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    margin-left: 0.2em;
+    vertical-align: 0.6em;
+  }
+
+  .lede {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: clamp(20px, 1.8vw, 26px);
+    line-height: 1.4;
+    letter-spacing: -0.005em;
+    color: var(--ink-soft);
+    max-width: 640px;
+    margin: 0 0 48px 0;
+  }
+  .lede em {
+    font-style: italic;
+    color: var(--ink);
+  }
+
+  .footnote {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: 0.005em;
+    color: var(--ink-mute);
+    max-width: 480px;
+    margin: 32px 0 0 0;
+    padding-left: 16px;
+    border-left: 1px solid rgba(26,20,16,0.15);
+  }
+
+  /* ---------- CARDS ---------- */
+  .cards {
+    display: grid;
+    gap: 18px;
+    margin-top: 24px;
+  }
+  .cards--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cards--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+  .card {
+    position: relative;
+    background: var(--paper);
+    border: 1px solid rgba(26,20,16,0.08);
+    border-radius: 14px;
+    padding: 22px 24px 24px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.6) inset,
+      0 12px 32px -16px rgba(26,20,16,0.18),
+      0 2px 4px -2px rgba(26,20,16,0.06);
+  }
+  .card__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--sans);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 14px 0;
+  }
+  .card__pill::before {
+    content: "";
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--card-color, var(--ink));
+  }
+  .card__num {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: 56px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin: 6px 0 4px 0;
+  }
+  .card__num .unit {
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    color: var(--ink-mute);
+    margin-left: 4px;
+  }
+  .card__label {
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.4;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+  .card__corner {
+    position: absolute;
+    top: 18px; right: 20px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-mute);
+    letter-spacing: 0.05em;
+  }
+
+  /* ---------- TOOL CALL LIST ---------- */
+  .terminal {
+    margin-top: 24px;
+    background: #1A1410;
+    border-radius: 14px;
+    padding: 24px 28px;
+    box-shadow: 0 18px 40px -20px rgba(26,20,16,0.4);
+  }
+  .terminal__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(250,246,238,0.08);
+  }
+  .terminal__title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: rgba(250,246,238,0.55);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .terminal__time {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: rgba(250,246,238,0.55);
+    letter-spacing: 0.05em;
+  }
+  .toolcall {
+    display: grid;
+    grid-template-columns: 22px 220px 1fr auto;
+    gap: 14px;
+    align-items: baseline;
+    padding: 7px 0;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: rgba(250,246,238,0.92);
+  }
+  .toolcall__check {
+    color: #7ED4A6;
+    font-weight: 500;
+  }
+  .toolcall__name {
+    color: #E8D9B8;
+    font-weight: 500;
+  }
+  .toolcall__detail {
+    color: rgba(250,246,238,0.6);
+  }
+  .toolcall__time {
+    color: rgba(250,246,238,0.4);
+    font-size: 11px;
+  }
+
+  /* ---------- LAYOUT VARIANTS ---------- */
+  .frame__inner--split {
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    gap: 64px;
+    align-items: start;
+  }
+
+  /* ---------- COMPARE STRIP (Hook) ---------- */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 28px;
+    align-items: stretch;
+    margin-top: 14px;
+  }
+  .compare__col {
+    background: var(--paper);
+    border: 1px solid rgba(26,20,16,0.08);
+    border-radius: 14px;
+    padding: 22px 24px;
+    box-shadow:
+      0 12px 32px -16px rgba(26,20,16,0.18),
+      0 2px 4px -2px rgba(26,20,16,0.06);
+  }
+  .compare__col--alarm {
+    background: linear-gradient(180deg, #F8E4DC 0%, var(--paper) 100%);
+  }
+  .compare__col--calm {
+    background: linear-gradient(180deg, #E1ECDC 0%, var(--paper) 100%);
+  }
+  .compare__price {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: 48px;
+    line-height: 1;
+    letter-spacing: -0.025em;
+    margin: 8px 0 6px 0;
+  }
+  .compare__price small {
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--ink-mute);
+    margin-left: 4px;
+    letter-spacing: 0;
+  }
+  .compare__divider {
+    align-self: center;
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 300;
+    font-size: 18px;
+    color: var(--ink-mute);
+    text-align: center;
+    width: 28px;
+  }
+
+  .ratio {
+    margin: 32px 0 0 0;
+    padding: 22px 28px;
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 18px 40px -20px rgba(26,20,16,0.4);
+  }
+  .ratio__label {
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: rgba(250,246,238,0.6);
+  }
+  .ratio__value {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: 56px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .ratio__value sup {
+    font-family: var(--sans);
+    font-size: 16px;
+    font-weight: 400;
+    color: rgba(250,246,238,0.6);
+    margin-left: 2px;
+    vertical-align: 1.6em;
+  }
+
+  /* ---------- IMPACT STAT ROW ---------- */
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    margin-top: 36px;
+    border-top: 1px solid rgba(26,20,16,0.15);
+    padding-top: 28px;
+  }
+  .stat {
+    padding: 0 24px;
+    border-right: 1px solid rgba(26,20,16,0.12);
+  }
+  .stat:first-child { padding-left: 0; }
+  .stat:last-child { border-right: none; padding-right: 0; }
+  .stat__label {
+    font-family: var(--sans);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin: 0 0 8px 0;
+  }
+  .stat__value {
+    font-family: var(--serif);
+    font-weight: 300;
+    font-size: 38px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .stat__value .unit {
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--ink-mute);
+    margin-left: 4px;
+    letter-spacing: 0;
+  }
+
+  /* ---------- PER-FRAME COLOR STORIES ---------- */
+  .frame--1 { --bg-1: #F4ECDF; --bg-2: #F1DFDB; --bg-3: #EADDC8; --pill-color: #A8553B; }
+  .frame--2 { --bg-1: #F0EDE0; --bg-2: #DDE7DB; --bg-3: #EBE4D2; --pill-color: #1F4D3F; }
+  .frame--3 { --bg-1: #F2EAD8; --bg-2: #ECDDB8; --bg-3: #E8E0CB; --pill-color: #9B7C3F; }
+  .frame--4 { --bg-1: #EBEFE6; --bg-2: #DDE7DB; --bg-3: #E8E5D8; --pill-color: #2F6B4F; }
+  .frame--5 { --bg-1: #E6EBE2; --bg-2: #D9E0D4; --bg-3: #EAE3D2; --pill-color: #1F4D3F; }
+
+  /* ---------- ENTRY ANIMATIONS ---------- */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  .frame.is-active .eyebrow { animation: fadeUp 0.7s ease-out 0.05s both; }
+  .frame.is-active .display { animation: fadeUp 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s both; }
+  .frame.is-active .lede { animation: fadeUp 0.8s ease-out 0.35s both; }
+  .frame.is-active .compare__col,
+  .frame.is-active .card,
+  .frame.is-active .terminal { animation: fadeUp 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.5s both; }
+  .frame.is-active .compare__col:nth-child(3) { animation-delay: 0.62s; }
+  .frame.is-active .card:nth-child(2) { animation-delay: 0.62s; }
+  .frame.is-active .card:nth-child(3) { animation-delay: 0.74s; }
+  .frame.is-active .ratio { animation: fadeUp 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) 0.85s both; }
+  .frame.is-active .footnote,
+  .frame.is-active .stat-row { animation: fadeUp 0.7s ease-out 0.95s both; }
+  .frame.is-active .toolcall { animation: fadeUp 0.5s ease-out both; }
+  .frame.is-active .toolcall:nth-child(1) { animation-delay: 0.65s; }
+  .frame.is-active .toolcall:nth-child(2) { animation-delay: 0.78s; }
+  .frame.is-active .toolcall:nth-child(3) { animation-delay: 0.91s; }
+  .frame.is-active .toolcall:nth-child(4) { animation-delay: 1.04s; }
+  .frame.is-active .toolcall:nth-child(5) { animation-delay: 1.17s; }
+  .frame.is-active .toolcall:nth-child(6) { animation-delay: 1.30s; }
+
+  /* ---------- DECK CONTROLS ---------- */
+  .controls {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px;
+    background: rgba(26,20,16,0.85);
+    backdrop-filter: blur(12px);
+    border-radius: 999px;
+    box-shadow: 0 12px 32px -8px rgba(26,20,16,0.5);
+  }
+  .controls__btn {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: rgba(250,246,238,0.55);
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s;
+  }
+  .controls__btn:hover { color: var(--paper); }
+  .controls__btn.is-active {
+    color: var(--ink);
+    background: var(--paper);
+  }
+  .controls__sep {
+    width: 1px;
+    height: 14px;
+    background: rgba(250,246,238,0.15);
+    margin: 0 4px;
+  }
+  .controls__play {
+    appearance: none;
+    border: none;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 8px 16px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  .controls__play:active { transform: scale(0.97); }
+  .controls__play.is-playing { background: var(--accent-warn); color: var(--paper); }
+
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width: 900px) {
+    .frame { padding: 5vh 6vw; }
+    .frame__inner--split { grid-template-columns: 1fr; gap: 32px; }
+    .cards--three { grid-template-columns: 1fr; }
+    .compare { grid-template-columns: 1fr; }
+    .compare__divider { display: none; }
+    .toolcall { grid-template-columns: 18px 1fr; gap: 10px; }
+    .toolcall__detail, .toolcall__time { display: none; }
+    .stat-row { grid-template-columns: 1fr; gap: 18px; }
+    .stat { border-right: none; padding: 0; border-bottom: 1px solid rgba(26,20,16,0.12); padding-bottom: 14px; }
+    .stat:last-child { border-bottom: none; }
+  }
+</style>
+</head>
+<body>
+
+<main class="deck" id="deck">
+
+  <!-- ============================================ -->
+  <!-- FRAME I — HOOK -->
+  <!-- ============================================ -->
+  <section class="frame frame--1" id="frame-1" data-frame="1">
+    <div class="chrome">
+      <div class="chrome__numeral">I</div>
+      <div class="chrome__pill">The Problem</div>
+      <div class="chrome__brand">Vastify <sup>01</sup></div>
+      <div class="chrome__counter"><strong>00:00</strong> / 03:00</div>
+    </div>
+
+    <div class="frame__inner frame__inner--split">
+      <div>
+        <p class="eyebrow">A quiet line on every Salesforce bill</p>
+        <h1 class="display">$250<span class="unit">/ GB · month</span></h1>
+        <p class="lede">
+          That's what Salesforce charges to store a single gigabyte of customer
+          data. <em>Two hundred and fifty dollars.</em> Every month.
+        </p>
+        <p class="footnote">
+          Most teams hit the limit and just&nbsp;… buy more. Quietly bleeding budget every month
+          for storage they could host themselves at a fraction of the cost.
+        </p>
+      </div>
+
+      <div>
+        <div class="compare">
+          <div class="compare__col compare__col--alarm">
+            <p class="card__pill" style="--card-color: var(--accent-warn);">Salesforce</p>
+            <div class="compare__price">$250<small>/ GB · mo</small></div>
+            <p class="card__label">Native data storage. Includes infra, indexes, UI &mdash; and a heavy markup.</p>
+          </div>
+          <div class="compare__divider">vs</div>
+          <div class="compare__col compare__col--calm">
+            <p class="card__pill" style="--card-color: var(--accent-savings);">AWS S3</p>
+            <div class="compare__price">$0.023<small>/ GB · mo</small></div>
+            <p class="card__label">Standard tier. The bucket you probably already pay for.</p>
+          </div>
+        </div>
+
+        <div class="ratio">
+          <div class="ratio__label">Differential</div>
+          <div class="ratio__value">10,000<sup>×</sup></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================ -->
+  <!-- FRAME II — TOUR -->
+  <!-- ============================================ -->
+  <section class="frame frame--2" id="frame-2" data-frame="2">
+    <div class="chrome">
+      <div class="chrome__numeral">II</div>
+      <div class="chrome__pill">The Pivot</div>
+      <div class="chrome__brand">Vastify <sup>02</sup></div>
+      <div class="chrome__counter"><strong>00:20</strong> / 03:00</div>
+    </div>
+
+    <div class="frame__inner">
+      <div style="text-align: center;">
+        <p class="eyebrow" style="justify-content: center;">Move it. Quietly.</p>
+        <h1 class="display"><em>Offload</em> &mdash; transparently.</h1>
+        <p class="lede" style="margin-left: auto; margin-right: auto; text-align: center;">
+          Vastify routes Salesforce files and records onto cloud storage you already own.
+          <em>Your users never know.</em>
+        </p>
+      </div>
+
+      <div class="cards cards--three">
+        <div class="card">
+          <p class="card__pill" style="--card-color: var(--accent-savings);">Files</p>
+          <div class="card__num">2.3<span class="unit">GB</span></div>
+          <p class="card__label">ContentVersion attachments &mdash; offloaded with a one-line trigger. Presigned URLs back to Salesforce.</p>
+        </div>
+        <div class="card">
+          <p class="card__pill" style="--card-color: var(--accent-savings);">Records</p>
+          <div class="card__num">8,492</div>
+          <p class="card__label">Custom-object rows archived to JSON-per-record. Queryable through OData External Objects.</p>
+        </div>
+        <div class="card">
+          <p class="card__pill" style="--card-color: var(--accent-savings);">Routing</p>
+          <div class="card__num">4<span class="unit">backends</span></div>
+          <p class="card__label">S3 · GCS · Azure · MinIO. One router. Per-tenant rules. Hot, warm, cold.</p>
+        </div>
+      </div>
+
+      <p class="footnote" style="margin-left: auto; margin-right: auto; text-align: center; border-left: none; border-top: 1px solid rgba(26,20,16,0.15); padding: 16px 0 0 0; max-width: 560px;">
+        No retraining. No data migration project. No new tabs for users to learn.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================ -->
+  <!-- FRAME III — SETUP AGENT -->
+  <!-- ============================================ -->
+  <section class="frame frame--3" id="frame-3" data-frame="3">
+    <div class="chrome">
+      <div class="chrome__numeral">III</div>
+      <div class="chrome__pill">The Agent</div>
+      <div class="chrome__brand">Vastify <sup>03</sup></div>
+      <div class="chrome__counter"><strong>00:40</strong> / 03:00</div>
+    </div>
+
+    <div class="frame__inner frame__inner--split">
+      <div>
+        <p class="eyebrow">Setup, automated</p>
+        <h1 class="display">00:58</h1>
+        <p class="lede">
+          Six tool calls. One click. Vastify configures itself &mdash; reading your
+          Salesforce schema, picking a backend, generating routing rules from
+          what it sees in your data, and deploying.
+        </p>
+        <p class="footnote">
+          Built on Claude Opus 4.7 with the Agent SDK. Tool use, not narration.
+          Every label below is a real call to a real function &mdash; not a script
+          pretending to think.
+        </p>
+      </div>
+
+      <div>
+        <div class="terminal">
+          <div class="terminal__head">
+            <span class="terminal__title">claude · opus 4.7 · agent</span>
+            <span class="terminal__time">elapsed 00:58</span>
+          </div>
+
+          <div class="toolcall">
+            <span class="toolcall__check">✓</span>
+            <span class="toolcall__name">inspect_org</span>
+            <span class="toolcall__detail">47 custom objects · 12&nbsp;GB</span>
+            <span class="toolcall__time">04s</span>
+          </div>
+          <div class="toolcall">
+            <span class="toolcall__check">✓</span>
+            <span class="toolcall__name">pick_backend</span>
+            <span class="toolcall__detail">GCS · us-central1 · STANDARD</span>
+            <span class="toolcall__time">11s</span>
+          </div>
+          <div class="toolcall">
+            <span class="toolcall__check">✓</span>
+            <span class="toolcall__name">write_storage_config</span>
+            <span class="toolcall__detail">encrypted · OK</span>
+            <span class="toolcall__time">14s</span>
+          </div>
+          <div class="toolcall">
+            <span class="toolcall__check">✓</span>
+            <span class="toolcall__name">generate_starter_rules</span>
+            <span class="toolcall__detail">4 rules &mdash; PDFs &gt;10MB to cold tier</span>
+            <span class="toolcall__time">31s</span>
+          </div>
+          <div class="toolcall">
+            <span class="toolcall__check">✓</span>
+            <span class="toolcall__name">deploy_sf_package</span>
+            <span class="toolcall__detail">External Data Source &mdash; live</span>
+            <span class="toolcall__time">52s</span>
+          </div>
+          <div class="toolcall">
+            <span class="toolcall__check">✓</span>
+            <span class="toolcall__name">validate_connection</span>
+            <span class="toolcall__detail">OData endpoint responding 200</span>
+            <span class="toolcall__time">58s</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================ -->
+  <!-- FRAME IV — DIFF EXPLAINER -->
+  <!-- ============================================ -->
+  <section class="frame frame--4" id="frame-4" data-frame="4">
+    <div class="chrome">
+      <div class="chrome__numeral">IV</div>
+      <div class="chrome__pill">The Reasoning</div>
+      <div class="chrome__brand">Vastify <sup>04</sup></div>
+      <div class="chrome__counter"><strong>01:55</strong> / 03:00</div>
+    </div>
+
+    <div class="frame__inner">
+      <div>
+        <p class="eyebrow">When something goes wrong</p>
+        <h1 class="display"><em>Restore</em> safely.</h1>
+        <p class="lede">
+          47 changes in this snapshot. Claude reads them all and tells you
+          which are safe to undo, which need a human eye, and which to leave
+          alone &mdash; <em>with reasoning</em>, not just a count.
+        </p>
+      </div>
+
+      <div class="cards cards--three">
+        <div class="card">
+          <p class="card__pill" style="--card-color: var(--safe);">Safe to restore</p>
+          <div class="card__num">12</div>
+          <p class="card__label">Contacts deleted in error during the bad import. Original data intact in snapshot. Restore as-is.</p>
+          <span class="card__corner">12 / 47</span>
+        </div>
+        <div class="card">
+          <p class="card__pill" style="--card-color: var(--review);">Needs review</p>
+          <div class="card__num">3</div>
+          <p class="card__label">Accounts edited since the snapshot. Restoring would overwrite the user's later changes &mdash; manual merge.</p>
+          <span class="card__corner">3 / 47</span>
+        </div>
+        <div class="card">
+          <p class="card__pill" style="--card-color: var(--skip);">Skip entirely</p>
+          <div class="card__num">1</div>
+          <p class="card__label">Closed-won opportunity. Restoring would re-open a deal that was correctly closed.</p>
+          <span class="card__corner">1 / 47</span>
+        </div>
+      </div>
+
+      <p class="footnote" style="margin-left: auto; margin-right: auto; text-align: center; border-left: none; border-top: 1px solid rgba(26,20,16,0.15); padding: 16px 0 0 0; max-width: 560px;">
+        Plain English. With the reasoning shown. No SQL, no diff-reading, no late-night triage.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================ -->
+  <!-- FRAME V — IMPACT -->
+  <!-- ============================================ -->
+  <section class="frame frame--5" id="frame-5" data-frame="5">
+    <div class="chrome">
+      <div class="chrome__numeral">V</div>
+      <div class="chrome__pill">The Outcome</div>
+      <div class="chrome__brand">Vastify <sup>05</sup></div>
+      <div class="chrome__counter"><strong>02:35</strong> / 03:00</div>
+    </div>
+
+    <div class="frame__inner">
+      <div style="text-align: center;">
+        <p class="eyebrow" style="justify-content: center;">In one sentence</p>
+        <h1 class="display">10,000<span class="unit">× cheaper</span></h1>
+        <p class="lede" style="margin-left: auto; margin-right: auto; text-align: center;">
+          Salesforce storage you don't have to pay Salesforce for &mdash;
+          set up by an agent, restored by reasoning, transparent to your users.
+        </p>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat">
+          <p class="stat__label">Saved · monthly</p>
+          <div class="stat__value">$11,840<span class="unit">/ mo</span></div>
+        </div>
+        <div class="stat">
+          <p class="stat__label">Setup · seconds</p>
+          <div class="stat__value">58<span class="unit">s</span></div>
+        </div>
+        <div class="stat">
+          <p class="stat__label">Cloud backends</p>
+          <div class="stat__value">4<span class="unit">major</span></div>
+        </div>
+      </div>
+
+      <p class="footnote" style="margin-left: auto; margin-right: auto; text-align: center; border-left: none; border-top: 1px solid rgba(26,20,16,0.15); padding: 18px 0 0 0; max-width: 720px; font-family: var(--serif); font-style: italic; font-size: 17px; color: var(--ink-soft);">
+        Vastify &mdash; built with Claude Opus 4.7. Code on GitHub. Thanks for watching.
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<!-- ---------- CONTROLS ---------- -->
+<div class="controls" role="navigation" aria-label="Storyboard controls">
+  <button class="controls__btn is-active" data-go="1">I</button>
+  <button class="controls__btn" data-go="2">II</button>
+  <button class="controls__btn" data-go="3">III</button>
+  <button class="controls__btn" data-go="4">IV</button>
+  <button class="controls__btn" data-go="5">V</button>
+  <span class="controls__sep" aria-hidden="true"></span>
+  <button class="controls__play" id="play">▶ Auto-play</button>
+</div>
+
+<script>
+  const deck = document.getElementById('deck');
+  const frames = Array.from(document.querySelectorAll('.frame'));
+  const navBtns = Array.from(document.querySelectorAll('.controls__btn'));
+  const playBtn = document.getElementById('play');
+
+  // Activate frame on viewport
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.intersectionRatio > 0.5) {
+        const idx = Number(entry.target.dataset.frame);
+        frames.forEach(f => f.classList.toggle('is-active', f === entry.target));
+        navBtns.forEach((b, i) => b.classList.toggle('is-active', i + 1 === idx));
+      }
+    });
+  }, { root: deck, threshold: [0, 0.5, 1] });
+
+  frames.forEach(f => io.observe(f));
+
+  // Manual nav
+  navBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = document.getElementById('frame-' + btn.dataset.go);
+      target?.scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+
+  // Autoplay
+  let playTimer = null;
+  let playIdx = 0;
+  playBtn.addEventListener('click', () => {
+    if (playTimer) {
+      clearInterval(playTimer);
+      playTimer = null;
+      playBtn.textContent = '▶ Auto-play';
+      playBtn.classList.remove('is-playing');
+      return;
+    }
+    playBtn.textContent = '■ Stop';
+    playBtn.classList.add('is-playing');
+    // Start from current
+    const current = navBtns.findIndex(b => b.classList.contains('is-active'));
+    playIdx = current >= 0 ? current : 0;
+    const advance = () => {
+      playIdx = (playIdx + 1) % frames.length;
+      frames[playIdx].scrollIntoView({ behavior: 'smooth' });
+    };
+    playTimer = setInterval(advance, 4500);
+  });
+
+  // Keyboard
+  window.addEventListener('keydown', (e) => {
+    const current = navBtns.findIndex(b => b.classList.contains('is-active'));
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+      const next = Math.min(frames.length - 1, current + 1);
+      frames[next].scrollIntoView({ behavior: 'smooth' });
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+      const prev = Math.max(0, current - 1);
+      frames[prev].scrollIntoView({ behavior: 'smooth' });
+    }
+  });
+
+  // Mark first frame active immediately
+  frames[0].classList.add('is-active');
+</script>
+
+</body>
+</html>

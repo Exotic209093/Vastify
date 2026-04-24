@@ -12,6 +12,7 @@
     "seed:demo": "bun src/scripts/seed-demo-data.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.91.0",
     "@aws-sdk/client-s3": "^3.717.0",
     "@aws-sdk/s3-request-presigner": "^3.717.0",
     "@azure/storage-blob": "^12.26.0",
@@ -21,7 +22,8 @@
     "jose": "^6.2.2",
     "simple-git": "^3.36.0",
     "unzipper": "^0.12.3",
-    "uuid": "^11.0.3"
+    "uuid": "^11.0.3",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/archiver": "^7.0.0",
