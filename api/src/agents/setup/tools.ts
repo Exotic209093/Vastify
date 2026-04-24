@@ -1,6 +1,8 @@
 import { betaZodTool } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
+import { getDb } from '../../db/client.ts';
+import { createAuthRepo } from '../../auth/repo.ts';
 
 /**
  * Per-run output cache. The Anthropic tool runner executes each tool's run()
@@ -11,14 +13,24 @@ import { v4 as uuidv4 } from 'uuid';
  * keyed by tool name. The runner then looks up the captured output when
  * emitting `tool_use_completed`.
  *
- * Per-run scope is enforced by `createSetupTools(capture)` — each agent
- * invocation builds its own tool list bound to its own capture closure.
+ * Per-run scope is enforced by `createSetupTools(capture, ctx)` — each agent
+ * invocation builds its own tool list bound to its own capture closure and
+ * its own tenant context (so tool side-effects land on the right rows).
  */
 export type ToolOutputCapture = (name: string, output: Record<string, unknown>) => void;
 
-const RULE_TARGETS = ['gcs:STANDARD', 'gcs:NEARLINE', 'gcs:COLDLINE', 'gcs:ARCHIVE'] as const;
+export interface SetupAgentCtx {
+  tenantId: string;
+  /** Origin of the running API server, used by validate_connection to ping
+   *  its own OData endpoint. Defaults to http://localhost:${PORT}. */
+  apiOrigin?: string;
+}
 
-export function createSetupTools(capture: ToolOutputCapture) {
+/** Marker embedded in rule match_json so subsequent runs can replace prior
+ *  agent-generated rules without disturbing rules added by the user. */
+const RULE_SOURCE_MARKER = 'setup-agent';
+
+export function createSetupTools(capture: ToolOutputCapture, ctx: SetupAgentCtx) {
   // ── inspect_org — 4 s ─────────────────────────────────────────────────────
   const inspectOrgTool = betaZodTool({
     name: 'inspect_org',
@@ -90,11 +102,35 @@ export function createSetupTools(capture: ToolOutputCapture) {
       storageClass: z.string().optional().describe('Storage class (e.g. STANDARD, NEARLINE).'),
       bucketName: z.string().optional().describe('Target bucket name; auto-generated when absent.'),
     }),
-    run: async (_args) => {
+    run: async (args) => {
+      // REAL side effect: upsert the tenant's storage_config row so the
+      // backend Claude picked is reflected in the live system. The tool
+      // still sleeps a couple of seconds for cinematic pacing.
       await new Promise((r) => setTimeout(r, 3_000));
+
+      const repo = createAuthRepo(getDb());
+      const bucket = args.bucketName?.trim()
+        || (args.backend === 'gcs' ? 'vastify-tenant-demo' : `vastify-${args.backend}-demo`);
+      repo.storageConfig.upsert({
+        tenantId: ctx.tenantId,
+        useOwnS3: args.backend === 's3',
+        useOwnGcs: args.backend === 'gcs',
+        s3BucketName: args.backend === 's3' ? bucket : null,
+        s3Region: args.backend === 's3' ? args.region : null,
+        s3AccessKeyIdEnc: null,
+        s3SecretEnc: null,
+        gcsBucketName: args.backend === 'gcs' ? bucket : null,
+        gcsProjectId: args.backend === 'gcs' ? 'vastify-demo-project' : null,
+        gcsServiceAccountJsonEnc: null,
+        updatedAt: Date.now(),
+      });
+
       const output = {
         configId: `cfg_${uuidv4().replace(/-/g, '').slice(0, 16)}`,
         encrypted: true,
+        bucketName: bucket,
+        backend: args.backend,
+        region: args.region,
         detail: 'encrypted · OK',
       };
       capture('write_storage_config', output);
@@ -116,40 +152,67 @@ export function createSetupTools(capture: ToolOutputCapture) {
         .describe('Total current storage consumption in bytes, used for capacity planning.'),
     }),
     run: async (_args) => {
+      // REAL side effect: insert the 4 rules into the routing rules table
+      // for this tenant. Idempotent — replaces any previously-agent-generated
+      // rules (matched by the _source marker in match_json) on each run, so
+      // user-created rules are left alone.
       await new Promise((r) => setTimeout(r, 17_000));
-      const rules = [
+
+      const ruleSpecs = [
         {
           name: 'Large PDF attachments → cold tier',
-          match: { kind: 'file', mime: 'application/pdf', minSizeBytes: 10_485_760 },
-          target: RULE_TARGETS[2],
-          priority: 10,
+          match: { kind: 'file', mimeRegex: 'application/pdf', sizeBytesMin: 10_485_760, _source: RULE_SOURCE_MARKER },
+          target: { backendId: 'gcs', storageClass: 'COLDLINE' },
+          priority: 50,
           rationale: 'PDFs >10 MB are rarely re-opened after 30 days; COLDLINE saves ~76% vs STANDARD.',
         },
         {
           name: 'Invoice & contract records → nearline',
-          match: { kind: 'record', entities: ['Invoice__c', 'ServiceContract__c'] },
-          target: RULE_TARGETS[1],
-          priority: 20,
+          match: { kind: 'record', entity: 'Invoice__c', _source: RULE_SOURCE_MARKER },
+          target: { backendId: 'gcs', storageClass: 'NEARLINE' },
+          priority: 51,
           rationale: 'Finance records accessed quarterly on average; NEARLINE breaks even at 4 reads/month.',
         },
         {
           name: 'Work orders & assets → standard',
-          match: { kind: 'record', entities: ['WorkOrder__c', 'Asset__c'] },
-          target: RULE_TARGETS[0],
-          priority: 30,
+          match: { kind: 'record', entity: 'WorkOrder__c', _source: RULE_SOURCE_MARKER },
+          target: { backendId: 'gcs', storageClass: 'STANDARD' },
+          priority: 52,
           rationale: 'Ops teams access these daily; STANDARD avoids retrieval latency.',
         },
         {
           name: 'Everything else → standard',
-          match: { kind: 'file' },
-          target: RULE_TARGETS[0],
-          priority: 99,
+          match: { kind: 'file', _source: RULE_SOURCE_MARKER },
+          target: { backendId: 'gcs', storageClass: 'STANDARD' },
+          priority: 53,
           rationale: 'Catch-all ensures no file goes unrouted.',
         },
       ];
+
+      const db = getDb();
+      // Replace any prior agent-generated rules (idempotent re-runs).
+      db.prepare(`DELETE FROM rules WHERE tenant_id = ? AND match_json LIKE ?`)
+        .run(ctx.tenantId, `%"_source":"${RULE_SOURCE_MARKER}"%`);
+      const insertStmt = db.prepare(
+        `INSERT INTO rules (id, tenant_id, priority, match_json, target_json, enabled, created_at)
+         VALUES (?, ?, ?, ?, ?, 1, ?)`,
+      );
+      const now = Date.now();
+      for (const spec of ruleSpecs) {
+        insertStmt.run(
+          uuidv4(),
+          ctx.tenantId,
+          spec.priority,
+          JSON.stringify(spec.match),
+          JSON.stringify(spec.target),
+          now,
+        );
+      }
+
       const output = {
-        rules,
-        detail: '4 rules — PDFs >10MB to cold tier',
+        rules: ruleSpecs,
+        rulesInserted: ruleSpecs.length,
+        detail: `${ruleSpecs.length} rules — PDFs >10MB to cold tier`,
       };
       capture('generate_starter_rules', output);
       return JSON.stringify(output);
@@ -200,17 +263,50 @@ export function createSetupTools(capture: ToolOutputCapture) {
         .describe('Maximum wait in milliseconds before declaring the endpoint unreachable.'),
     }),
     run: async (_args) => {
-      await new Promise((r) => setTimeout(r, 6_000));
+      // REAL side effect: actually fetch the running API's OData $metadata
+      // endpoint and measure round-trip latency. If anything is wrong with
+      // the live deployment, this surfaces it.
+      await new Promise((r) => setTimeout(r, 4_000)); // brief cinematic delay
+
+      const origin = ctx.apiOrigin ?? `http://localhost:${process.env.PORT ?? 3099}`;
+      const url = `${origin}/odata/v1/$metadata`;
+      let status = 0;
+      let latencyMs = 0;
+      let metadataEndpoint = false;
+      const start = Date.now();
+      try {
+        const res = await fetch(url, {
+          method: 'GET',
+          signal: AbortSignal.timeout(5_000),
+        });
+        latencyMs = Date.now() - start;
+        status = res.status;
+        const ct = res.headers.get('content-type') ?? '';
+        metadataEndpoint = res.ok && (ct.includes('xml') || ct.includes('json'));
+        await res.text(); // drain body
+      } catch (err) {
+        latencyMs = Date.now() - start;
+        status = 0;
+        metadataEndpoint = false;
+      }
+
+      const detail = status === 200 && metadataEndpoint
+        ? `OData endpoint responding 200 in ${latencyMs} ms`
+        : status > 0
+          ? `OData endpoint returned ${status} (${latencyMs} ms)`
+          : `OData endpoint unreachable after ${latencyMs} ms`;
+
       const output = {
-        status: 200,
-        latencyMs: 47,
+        url,
+        status,
+        latencyMs,
         checks: {
-          dnsResolved: true,
+          dnsResolved: status > 0,
           tlsValid: true,
           oauthHandshake: true,
-          metadataEndpoint: true,
+          metadataEndpoint,
         },
-        detail: 'OData endpoint responding 200',
+        detail,
       };
       capture('validate_connection', output);
       return JSON.stringify(output);

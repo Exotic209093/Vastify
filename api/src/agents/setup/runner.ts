@@ -98,9 +98,12 @@ export async function* runSetupAgent(
   // Per-run output cache: each tool's run() writes its result here so the
   // outer loop can attach it to the tool_use_completed event.
   const toolOutputs = new Map<string, Record<string, unknown>>();
-  const tools = createSetupTools((name, output) => {
-    toolOutputs.set(name, output);
-  });
+  const tools = createSetupTools(
+    (name, output) => {
+      toolOutputs.set(name, output);
+    },
+    { tenantId: opts.tenantId },
+  );
 
   const runner = client.beta.messages.toolRunner(
     {
