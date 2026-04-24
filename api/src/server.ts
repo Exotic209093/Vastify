@@ -76,5 +76,9 @@ log.info('starting vastify-api', {
 
 export default {
   port: config.port,
+  // Bun closes idle connections after 10s by default. SSE streams (Setup Agent
+  // tool calls take 21s on deploy_sf_package; Diff Explainer Claude calls can
+  // take 30s+) need much longer. Cap at 255s (Bun's max).
+  idleTimeout: 255,
   fetch: app.fetch,
 };

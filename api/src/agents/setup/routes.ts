@@ -59,6 +59,13 @@ setupAgentRoutes.post('/run', (c) => {
 
     log.info('setup agent: SSE connection open', { tenantId, orgHint });
 
+    // Heartbeat every 5s — keeps the SSE stream alive during long tool waits
+    // (e.g. generate_starter_rules sleeps 17s) and across any flaky proxy.
+    const heartbeat = setInterval(() => {
+      void stream.writeSSE({ event: 'ping', data: JSON.stringify({ at: Date.now() }) }).catch(() => {});
+    }, 5_000);
+    stream.onAbort(() => clearInterval(heartbeat));
+
     try {
       for await (const event of runSetupAgent({ orgHint, signal: controller.signal, tenantId })) {
         if (controller.signal.aborted) break;
@@ -107,6 +114,8 @@ setupAgentRoutes.post('/run', (c) => {
       } catch {
         // Stream may already be closed; nothing to do.
       }
+    } finally {
+      clearInterval(heartbeat);
     }
   });
 });
