@@ -281,6 +281,31 @@ routes.get('/diff-plans/:id', (c) => {
   return c.json(plan);
 });
 
+// List existing diff plans for a snapshot — used by the SnapshotDetail page
+// to auto-load a pre-built plan instead of forcing the user to click Build Diff.
+// Optional ?targetOrgId= filter.
+routes.get('/snapshots/:snapshotId/diff-plans', (c) => {
+  const tenantId = tenantOf(c);
+  const snapshotId = c.req.param('snapshotId');
+  const targetOrgId = c.req.query('targetOrgId');
+  const repo = getRepo();
+  const snap = repo.snapshots.findById(snapshotId);
+  if (!snap || snap.tenantId !== tenantId) return c.json({ error: 'not found' }, 404);
+
+  // findBySnapshot requires a targetOrgId. If none supplied, scan all of the
+  // tenant's connected orgs and merge.
+  let plans;
+  if (targetOrgId) {
+    plans = repo.diffPlans.findBySnapshot(snapshotId, targetOrgId);
+  } else {
+    const orgs = repo.connectedOrgs.findByTenant(tenantId);
+    plans = orgs.flatMap((o) => repo.diffPlans.findBySnapshot(snapshotId, o.id));
+  }
+  // Newest first (findBySnapshot already orders DESC, but we re-sort after merge).
+  plans.sort((a, b) => b.builtAt - a.builtAt);
+  return c.json({ plans });
+});
+
 // ─── Restore ──────────────────────────────────────────────────────────────────
 
 const VALID_MODES = new Set<RestoreJobMode>(['dry-run', 'execute']);

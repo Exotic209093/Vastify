@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { ArrowLeft, GitCommit, RefreshCw, Sparkles, CheckCircle2, AlertTriangle, XCircle, Loader2 } from 'lucide-react';
 import { Card, CardBody, CardHeader } from '../components/Card';
-import { getSnapshot, listOrgs, buildDiff, getDiffPlan, triggerRestore, getRestoreJob } from '../lib/backup-api';
+import { getSnapshot, listOrgs, buildDiff, getDiffPlan, listDiffPlansForSnapshot, triggerRestore, getRestoreJob } from '../lib/backup-api';
 import type { DiffPlan } from '../lib/backup-api';
 import { api } from '../lib/api';
 import { relativeTime, bytes } from '../lib/format';
@@ -336,6 +336,20 @@ export default function SnapshotDetail() {
     queryKey: ['orgs'],
     queryFn: listOrgs,
   });
+
+  // Auto-discover any pre-built diff plans for this snapshot. If one exists,
+  // skip the Build-Diff form and load it straight into the diff explainer.
+  const { data: existingPlans = [] } = useQuery({
+    queryKey: ['diff-plans-for-snapshot', snapshotId],
+    queryFn: () => listDiffPlansForSnapshot(snapshotId!),
+    enabled: !!snapshotId && !diffPlanId,
+  });
+  useEffect(() => {
+    if (!diffPlanId && existingPlans.length > 0) {
+      setDiffPlanId(existingPlans[0].id);
+      setTargetOrgId(existingPlans[0].targetOrgId);
+    }
+  }, [existingPlans, diffPlanId]);
 
   const { data: diffPlan } = useQuery({
     queryKey: ['diff-plan', diffPlanId],

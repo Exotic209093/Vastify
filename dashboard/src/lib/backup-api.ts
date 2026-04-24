@@ -85,6 +85,8 @@ export const triggerSnapshot = (connectedOrgId: string, scopeId: string) =>
 export const buildDiff = (snapshotId: string, targetOrgId: string) =>
   authApi<{ diffPlanId: string }>(`/v1/backup/snapshots/${snapshotId}/diff`, { json: { targetOrgId } });
 export const getDiffPlan = (diffPlanId: string) => authApi<DiffPlan>(`/v1/backup/diff-plans/${diffPlanId}`);
+export const listDiffPlansForSnapshot = (snapshotId: string) =>
+  authApi<{ plans: DiffPlan[] }>(`/v1/backup/snapshots/${snapshotId}/diff-plans`).then((r) => r.plans);
 
 export const triggerRestore = (snapshotId: string, body: { targetOrgId: string; diffPlanId: string; mode: 'dry-run' | 'execute'; confirm?: boolean }) =>
   authApi<{ jobId: string }>(`/v1/backup/snapshots/${snapshotId}/restore`, { json: body });
