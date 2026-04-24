@@ -146,8 +146,12 @@ export function createAuthRepo(db: Database): AuthRepo {
         return r ? rowToUser(r) : null;
       },
       upsert(user) {
-        const id = user.id ?? randomUUID();
-        db.prepare(`
+        const newId = user.id ?? randomUUID();
+        // ON CONFLICT(sf_user_id) keeps the existing row's id — so the `newId`
+        // we passed in is only used when this is a fresh insert. We must read
+        // back the actual stored id; otherwise a returned-but-fake id breaks
+        // any FK that downstream code creates against users(id).
+        const row = db.prepare(`
           INSERT INTO users (id, sf_user_id, sf_org_id, sf_username, display_name, email, created_at, last_login_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(sf_user_id) DO UPDATE SET
@@ -155,8 +159,9 @@ export function createAuthRepo(db: Database): AuthRepo {
             display_name = excluded.display_name,
             email = excluded.email,
             last_login_at = excluded.last_login_at
-        `).run(id, user.sfUserId, user.sfOrgId, user.sfUsername, user.displayName, user.email ?? null, user.createdAt, user.lastLoginAt ?? null);
-        return { ...user, id };
+          RETURNING id
+        `).get(newId, user.sfUserId, user.sfOrgId, user.sfUsername, user.displayName, user.email ?? null, user.createdAt, user.lastLoginAt ?? null) as { id: string };
+        return { ...user, id: row.id };
       },
     },
     tenants: {
