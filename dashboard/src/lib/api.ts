@@ -133,7 +133,9 @@ export async function authApi<T = unknown>(path: string, opts: FetchOpts = {}): 
   }
   const res = await fetch(path, { ...init });
   if (res.status === 401) {
-    window.location.href = '/login';
+    if (!window.location.pathname.startsWith('/login')) {
+      window.location.href = '/login';
+    }
     throw new Error('Unauthorized');
   }
   if (!res.ok) {
