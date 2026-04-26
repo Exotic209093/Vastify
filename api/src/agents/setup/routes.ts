@@ -4,6 +4,7 @@ import { requireApiKey, tenantOf } from '../../auth/api-key.ts';
 import { runSetupAgent } from './runner.ts';
 import { log } from '../../util/logger.ts';
 import { loadConfig } from '../../config.ts';
+import { rateLimit } from '../../util/rate-limit.ts';
 
 export const setupAgentRoutes = new Hono();
 
@@ -26,6 +27,17 @@ setupAgentRoutes.post('/run', (c) => {
   }
 
   const tenantId = tenantOf(c);
+
+  // One Setup Agent run per tenant per 30s. A full run takes ~30s of tool calls,
+  // so this caps a tenant at ~120 runs/hour on the live Anthropic key.
+  const limit = rateLimit({ key: 'agent:setup', tenantId, minIntervalMs: 30_000 });
+  if (!limit.ok) {
+    c.header('Retry-After', String(Math.ceil(limit.retryAfterMs / 1000)));
+    return c.json(
+      { error: 'rate_limited', retryAfterMs: limit.retryAfterMs },
+      429,
+    );
+  }
 
   return streamSSE(c, async (stream) => {
     let eventId = 0;

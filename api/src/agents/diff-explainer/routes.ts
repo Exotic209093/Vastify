@@ -7,6 +7,7 @@ import { createBackupRepo } from '../../backup/repo.js';
 import { DiffPlanStore } from '../../backup/diff-plan-store.js';
 import { log } from '../../util/logger.js';
 import { explainDiff } from './explainer.js';
+import { rateLimit } from '../../util/rate-limit.js';
 import type { DiffPlanDocument } from '../../backup/diff-types.js';
 import type { ObjectBackend } from '../../object/backend.js';
 
@@ -78,6 +79,14 @@ diffExplainerRoutes.use('*', requireApiKey);
 
 diffExplainerRoutes.post('/explain-diff', async (c) => {
   const tenantId = tenantOf(c);
+
+  // One explanation per tenant per 10s. Each call can spend up to ~8k output
+  // tokens on Claude, so cap to ~360 calls/hour on the live Anthropic key.
+  const limit = rateLimit({ key: 'agent:explain-diff', tenantId, minIntervalMs: 10_000 });
+  if (!limit.ok) {
+    c.header('Retry-After', String(Math.ceil(limit.retryAfterMs / 1000)));
+    return c.json({ error: 'rate_limited', retryAfterMs: limit.retryAfterMs }, 429);
+  }
 
   // Parse + validate body
   let body: unknown;

@@ -23,6 +23,8 @@ export interface AppConfig {
   sfRedirectUri: string;
   anthropicApiKey: string;
   anthropicModel: string;
+  /** Origins allowed to make credentialed cross-origin requests to /v1/* and /auth/*. */
+  allowedOrigins: string[];
 }
 
 function bool(key: string, fallback = false): boolean {
@@ -94,5 +96,9 @@ export function loadConfig(): AppConfig {
     sfRedirectUri: str('SF_REDIRECT_URI', 'http://localhost:3000/auth/salesforce/callback'),
     anthropicApiKey: str('ANTHROPIC_API_KEY', ''),
     anthropicModel: str('ANTHROPIC_MODEL', 'claude-opus-4-7'),
+    allowedOrigins: str('ALLOWED_ORIGINS', 'http://localhost:5173,http://localhost:3099')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
   };
 }

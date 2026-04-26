@@ -7,6 +7,11 @@ export const filesRoutes = new Hono();
 
 filesRoutes.use('*', requireApiKey);
 
+// 100 MB binary cap. Base64 inflates by ~4/3, so the encoded string ceiling is ~133 MB.
+// Reject before atob() to avoid allocating the full payload on bogus requests.
+const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+const MAX_UPLOAD_BASE64 = Math.ceil(MAX_UPLOAD_BYTES * 4 / 3);
+
 // POST /v1/files/upload
 // Body: { originalName, contentType?, dataBase64, sfContentVersionId? }
 filesRoutes.post('/upload', async (c) => {
@@ -19,6 +24,9 @@ filesRoutes.post('/upload', async (c) => {
   };
   if (!body.originalName || !body.dataBase64) {
     return c.json({ error: 'missing_fields', required: ['originalName', 'dataBase64'] }, 400);
+  }
+  if (body.dataBase64.length > MAX_UPLOAD_BASE64) {
+    return c.json({ error: 'payload_too_large', maxBytes: MAX_UPLOAD_BYTES }, 413);
   }
   const data = Uint8Array.from(atob(body.dataBase64), (ch) => ch.charCodeAt(0));
   try {
