@@ -44,6 +44,7 @@ api/public/
 
 # Local secrets (never commit)
 .env.docker
+DEPLOY_NOTES.md
 
 # Git worktrees
 .worktrees/
