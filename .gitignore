@@ -11,10 +11,6 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
-# Bun
-bun.lock
-bun.lockb
-
 # SQLite (keep schema.sql, ignore data)
 *.db
 *.db-wal
@@ -51,3 +47,6 @@ api/public/
 
 # Git worktrees
 .worktrees/
+
+# Playwright MCP cache (browser snapshots)
+.playwright-mcp/
