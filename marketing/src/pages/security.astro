@@ -1,0 +1,55 @@
+---
+import Base from '../layouts/Base.astro';
+import PageHeader from '../components/PageHeader.astro';
+import CTAStrip from '../components/CTAStrip.astro';
+
+const pillars = [
+  {
+    title: 'Your bucket. Your KMS. Your call.',
+    body: 'Vastify never owns the bucket. We never see your KMS keys. The only data that touches our infrastructure is metadata about the routing decision — never the file payload.',
+  },
+  {
+    title: 'Encrypted in transit and at rest',
+    body: 'TLS everywhere. At-rest encryption uses your cloud provider\'s native primitives — S3 SSE-KMS, GCS CMEK, Azure CMK. Bring your own key; rotate on your schedule.',
+  },
+  {
+    title: 'Data residency stays where you put it',
+    body: 'Pick the region when you create the bucket. Vastify does not replicate, mirror, or back-haul data outside it. Multi-region setups split traffic at the rule layer.',
+  },
+  {
+    title: 'Audit trail you can ship',
+    body: 'Every routing decision lands in a JSON audit log you can forward to your SIEM. Salesforce auth, tenant resolution, rule match, backend selection, and outcome — all stamped.',
+  },
+  {
+    title: 'Least-privilege IAM',
+    body: 'Vastify needs PUT/GET on a single prefix in your bucket. We supply a Terraform module that creates exactly that role — nothing broader. Your security team can review every line.',
+  },
+  {
+    title: 'Open source, auditable end to end',
+    body: 'The whole thing is on GitHub. If a security review wants to read every line of the file router, they can. No magic, no proprietary blob.',
+  },
+];
+---
+<Base title="Security — Vastify">
+  <PageHeader eyebrow="Security" title="Your data. Your bucket. Your rules." sub="Vastify is a thin router. The whole point is that file payloads never sit on infrastructure we control." />
+
+  <section class="relative">
+    <div class="max-w-5xl mx-auto px-6 py-16 grid md:grid-cols-2 gap-6">
+      {pillars.map((p) => (
+        <div class="rounded-2xl border border-slate-800 bg-slate-900/50 p-8">
+          <h2 class="text-xl font-semibold text-white">{p.title}</h2>
+          <p class="mt-3 text-slate-400 leading-relaxed">{p.body}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="relative border-t border-slate-900 bg-slate-950/60">
+    <div class="max-w-5xl mx-auto px-6 py-16">
+      <h2 class="text-2xl font-semibold text-white">Compliance posture</h2>
+      <p class="mt-4 text-slate-400 max-w-3xl">Vastify is in private beta and not yet SOC 2 certified. The architecture is designed to make a future audit straightforward: stateless routing, customer-owned data plane, scoped IAM, full audit log forwarding. If you need a security questionnaire today, send it.</p>
+    </div>
+  </section>
+
+  <CTAStrip />
+</Base>

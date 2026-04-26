@@ -1,0 +1,44 @@
+---
+import { SITE, NAV_LINKS } from '../lib/site';
+const year = new Date().getFullYear();
+---
+<footer class="border-t border-slate-900 bg-slate-950 mt-24">
+  <div class="max-w-7xl mx-auto px-6 py-14 grid md:grid-cols-[1.4fr_1fr_1fr_1fr] gap-10">
+    <div>
+      <div class="flex items-center gap-2 text-white font-semibold">
+        <span class="inline-flex items-center justify-center w-7 h-7 rounded-md bg-brand-600">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8l6 9 6-9"/></svg>
+        </span>
+        {SITE.brandName}
+      </div>
+      <p class="mt-4 text-sm text-slate-400 max-w-xs">CRM storage, offloaded onto your own cloud bucket. Open source · self-hostable.</p>
+    </div>
+    <div>
+      <div class="text-xs uppercase tracking-wider text-slate-500 mb-3">Product</div>
+      <ul class="space-y-2 text-sm text-slate-300">
+        {NAV_LINKS.map((l) => (
+          <li><a href={l.href} class="hover:text-white">{l.label}</a></li>
+        ))}
+      </ul>
+    </div>
+    <div>
+      <div class="text-xs uppercase tracking-wider text-slate-500 mb-3">Resources</div>
+      <ul class="space-y-2 text-sm text-slate-300">
+        <li><a href={SITE.repoUrl} target="_blank" rel="noopener" class="hover:text-white">GitHub</a></li>
+        <li><a href="/get-started" class="hover:text-white">Get started</a></li>
+      </ul>
+    </div>
+    <div>
+      <div class="text-xs uppercase tracking-wider text-slate-500 mb-3">Contact</div>
+      <ul class="space-y-2 text-sm text-slate-300">
+        <li><a href={`mailto:${SITE.contactEmail}`} class="hover:text-white">{SITE.contactEmail}</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="border-t border-slate-900">
+    <div class="max-w-7xl mx-auto px-6 py-6 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+      <span>© {year} {SITE.brandName}. All rights reserved.</span>
+      <span class="font-mono">Bun · Astro · Caddy · Salesforce · S3 · GCS · Azure · MinIO</span>
+    </div>
+  </div>
+</footer>
