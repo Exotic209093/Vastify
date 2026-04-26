@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { serveStatic } from 'hono/bun';
 import { loadConfig } from './config.ts';
 import { getDb } from './db/client.ts';
+import { ensureBucketsExist } from './object/registry.ts';
 import { filesRoutes } from './files/routes.ts';
 import { recordsRoutes } from './records/routes.ts';
 import { odataRoutes } from './odata/handler.ts';
@@ -17,6 +18,8 @@ import { log } from './util/logger.ts';
 
 const config = loadConfig();
 getDb();
+// Fire-and-forget — survive transient backend hiccups during boot.
+ensureBucketsExist().catch((e) => log.error('ensureBucketsExist failed', { err: (e as Error).message }));
 const app = new Hono();
 
 app.get('/health', (c) => c.json({ ok: true, service: 'vastify-api', version: '0.1.0' }));

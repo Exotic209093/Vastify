@@ -43,6 +43,24 @@ export function getBackend(id: BackendId): ObjectBackend {
   return b;
 }
 
+/**
+ * Make sure each S3-compatible backend has its bucket. No-op for backends that
+ * don't expose ensureBucket (currently GCS, Azure — those expect the bucket to
+ * already exist). Errors are logged but not fatal.
+ */
+export async function ensureBucketsExist(): Promise<void> {
+  for (const [id, backend] of getBackends()) {
+    const fn = (backend as { ensureBucket?: () => Promise<void> }).ensureBucket;
+    if (typeof fn !== 'function') continue;
+    try {
+      await fn.call(backend);
+      log.info(`bucket ready`, { backend: id });
+    } catch (e) {
+      log.error(`bucket ensure failed`, { backend: id, err: (e as Error).message });
+    }
+  }
+}
+
 /** Test-only: override the registry. */
 export function setTestBackends(map: Map<BackendId, ObjectBackend>): void {
   registry = map;

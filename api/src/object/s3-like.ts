@@ -6,6 +6,8 @@ import {
   CopyObjectCommand,
   ListObjectsV2Command,
   HeadObjectCommand,
+  HeadBucketCommand,
+  CreateBucketCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type {
@@ -80,6 +82,24 @@ export class S3LikeBackend implements ObjectBackend {
       forcePathStyle: cfg.forcePathStyle,
       credentials: { accessKeyId: cfg.accessKeyId, secretAccessKey: cfg.secretAccessKey },
     });
+  }
+
+  /**
+   * Make sure the configured bucket exists. No-op if it already does.
+   * Only meaningful for MinIO / dev S3-compat hosts where we control the bucket lifecycle.
+   */
+  async ensureBucket(): Promise<void> {
+    try {
+      await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
+      return;
+    } catch (err: unknown) {
+      const e = err as { name?: string; $metadata?: { httpStatusCode?: number } };
+      const status = e?.$metadata?.httpStatusCode;
+      if (status !== 404 && e?.name !== 'NotFound' && e?.name !== 'NoSuchBucket') {
+        throw err;
+      }
+    }
+    await this.client.send(new CreateBucketCommand({ Bucket: this.bucket }));
   }
 
   async put(key: string, body: Uint8Array, opts?: PutOptions): Promise<PutResult> {
