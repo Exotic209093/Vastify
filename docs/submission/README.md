@@ -20,7 +20,7 @@ The demo is a 3-minute walkthrough that covers:
 | 2:15 – 2:38 | **Savings & impact** — $250K → $276/year, $1.24M five-year net |
 | 2:38 – 2:58 | **Outro** — three pillars, with Claude inside |
 
-Voiced with **ElevenLabs** (Bella). Music is a synthesised ambient pad. Captions in [`vastify-3min.srt`](#) (sidecar SRT).
+Voiced with **ElevenLabs** (Bella). Music is a synthesised ambient pad. Captions ship as a sidecar `vastify-3min.srt` file alongside the MP4 — drop both into a video player or upload to YouTube and they auto-detect.
 
 ## How the video itself was built
 
