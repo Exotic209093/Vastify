@@ -24,9 +24,15 @@ export class GcsBackend implements ObjectBackend {
   private readonly bucket: Bucket;
 
   constructor(cfg: GcsConfig) {
+    // On hosts like Railway we can't ship a key file; accept the service-account JSON
+    // inline via GOOGLE_APPLICATION_CREDENTIALS_JSON and prefer it over a file path.
+    const inlineJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+    const credentials = inlineJson ? JSON.parse(inlineJson) : undefined;
     const storage = new Storage({
       projectId: cfg.projectId || undefined,
-      keyFilename: cfg.credentialsPath || undefined,
+      ...(credentials
+        ? { credentials }
+        : { keyFilename: cfg.credentialsPath || undefined }),
     });
     this.bucket = storage.bucket(cfg.bucket);
   }
