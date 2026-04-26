@@ -1,10 +1,8 @@
 FROM minio/minio:latest
 
-ENV MINIO_API_PORT=9000
-ENV MINIO_CONSOLE_PORT=9001
-
 EXPOSE 9000 9001
 
-# Railway sets PORT to a single value; we forward it to MINIO_API_PORT so the
-# service's public port matches what the platform expects.
-CMD ["sh", "-c", "minio server /data --address :${PORT:-9000} --console-address :9001"]
+# minio is the ENTRYPOINT, so CMD args are appended to it.
+# API on 9000, console on 9001. Internal-only access via Railway's
+# private network (minio.railway.internal:9000) — no public domain needed.
+CMD ["server", "/data", "--console-address", ":9001"]
