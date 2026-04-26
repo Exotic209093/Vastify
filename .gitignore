@@ -38,6 +38,9 @@ dashboard/dist/
 dashboard/.vite/
 dashboard/vite.config.d.ts
 dashboard/vite.config.js
+dashboard/tsconfig.tsbuildinfo
+dashboard/tsconfig.node.tsbuildinfo
+*.tsbuildinfo
 
 # API static build output
 api/public/
@@ -54,9 +57,16 @@ DEPLOY_NOTES.md
 .playwright-mcp/
 
 # Demo video / hyperframe generation artifacts (heavy, regenerable)
-docs/submission/hyperframes/stitched/
-docs/submission/hyperframes/v2/
-docs/submission/hyperframes/frame-*.html
+# The whole hyperframes/ build output is too big for git; live link in docs/submission/README.md.
+docs/submission/hyperframes/
 frame-*.png
+frame-01-preview.png
 *.mp4
 *.wav
+*.mp3
+
+# Claude Code session data (per-machine)
+.claude/
+
+# Generated marketing site bundle (was a one-off export, regenerable)
+Vastify Site.html
