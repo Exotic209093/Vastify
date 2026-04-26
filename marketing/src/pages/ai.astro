@@ -1,0 +1,66 @@
+---
+import Base from '../layouts/Base.astro';
+import PageHeader from '../components/PageHeader.astro';
+import CTAStrip from '../components/CTAStrip.astro';
+import AIShowcase from '../components/AIShowcase';
+---
+<Base title="AI features — Vastify">
+  <PageHeader eyebrow="AI" title="Boring infra. Smart onboarding." sub="Two Claude-powered features that turn the worst parts of CRM storage into one click." />
+
+  <AIShowcase client:visible />
+
+  <section class="relative border-t border-slate-900">
+    <div class="max-w-5xl mx-auto px-6 py-20 space-y-16">
+      <div>
+        <div class="text-xs text-brand-300 uppercase tracking-[0.18em] font-medium">Setup Agent</div>
+        <h2 class="mt-3 text-3xl md:text-4xl font-semibold text-white tracking-[-0.02em]">Onboarding that finishes itself.</h2>
+        <p class="mt-4 text-slate-300 text-lg max-w-3xl">You click "Set me up". Claude tool-calls through the work — inspects your Salesforce org, picks the backend that fits your residency, writes a starter rule set, and validates the round-trip. Time-boxed to one specific scenario: fresh tenant, connected and routing, in under a minute.</p>
+        <div class="mt-8 grid md:grid-cols-2 gap-6">
+          <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+            <h3 class="text-sm uppercase tracking-wider text-slate-400">What it does</h3>
+            <ul class="mt-3 space-y-2 text-slate-300 text-sm">
+              <li>Reads ContentVersion volume + record counts</li>
+              <li>Recommends backend (residency-aware)</li>
+              <li>Writes <span class="font-mono text-brand-300">tenants/{`{id}`}/storage.json</span></li>
+              <li>Generates 3-5 starter rules (size + age thresholds)</li>
+              <li>Round-trips a test write/read</li>
+            </ul>
+          </div>
+          <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+            <h3 class="text-sm uppercase tracking-wider text-slate-400">Tools the model calls</h3>
+            <ul class="mt-3 space-y-2 font-mono text-xs text-slate-300">
+              <li>introspect_org()</li>
+              <li>pick_backend(region, sensitivity)</li>
+              <li>write_storage_config(backend, prefix)</li>
+              <li>generate_starter_rules(profile)</li>
+              <li>validate_connection()</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-900 pt-16">
+        <div class="text-xs text-brand-300 uppercase tracking-[0.18em] font-medium">Diff Explainer</div>
+        <h2 class="mt-3 text-3xl md:text-4xl font-semibold text-white tracking-[-0.02em]">Restore what you mean to.</h2>
+        <p class="mt-4 text-slate-300 text-lg max-w-3xl">When you open a snapshot, Claude reads the diff plan and explains it in plain English — what records would change, which restores conflict with edits since the snapshot, and which N items are safe to apply right now.</p>
+        <div class="mt-8 grid md:grid-cols-2 gap-6">
+          <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+            <h3 class="text-sm uppercase tracking-wider text-slate-400">What it does</h3>
+            <ul class="mt-3 space-y-2 text-slate-300 text-sm">
+              <li>Reads the snapshot diff JSON</li>
+              <li>Classifies items as safe / conflicting / blocked</li>
+              <li>Writes a one-paragraph summary</li>
+              <li>Surfaces a "Restore the N safe items" button</li>
+            </ul>
+          </div>
+          <div class="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
+            <h3 class="text-sm uppercase tracking-wider text-slate-400">Why it matters</h3>
+            <p class="mt-3 text-sm text-slate-300">Backup restores are scary because nobody reads diff JSON. The model turns a 400-line diff into one paragraph and an action button — admins recover faster, with fewer accidental overwrites.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <CTAStrip />
+</Base>
