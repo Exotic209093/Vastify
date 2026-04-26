@@ -1,5 +1,10 @@
 const DEFAULT_API_KEY = 'vastify_demo_key_change_me';
-const DEFAULT_API_BASE = 'http://localhost:3099';
+// Empty default ⇒ requests are relative paths.
+// - In production: dashboard is served by the API at the same origin, so /v1/* hits the API.
+// - In dev: vite.config.ts proxies /v1, /auth, /odata to the local API on :3099.
+// Set VITE_API_BASE only if you need to point the dashboard at a *different-origin* API
+// (e.g. running the dashboard standalone against a remote staging API).
+const DEFAULT_API_BASE = '';
 
 export function getApiKey(): string {
   return (
