@@ -15,22 +15,34 @@ A large enterprise Salesforce org can spend six figures a year on storage that c
 
 ## Three pipelines, one storage layout
 
-```
-                   ┌─── Files  ─── ContentVersion → trigger → Queueable → POST /v1/files/upload
-Salesforce org ────┼─── Records (live) ─── Vastify_Interaction__x ⇆ SF Connect OData
-                   └─── Records (archive) ─── Scheduled Apex → POST /v1/records/archive
-                                                                                 │
-                                                                                 ▼
-                                                                         ┌───────────────┐
-                                                                         │   Middleware  │
-                                                                         │  (Bun + TS)   │
-                                                                         └───────┬───────┘
-                                                                                 │
-                                                            ┌────────────────────┼────────────────────┐
-                                                            ▼                    ▼                    ▼
-                                                        SQLite              ObjectBackend        ObjectBackend
-                                                        (index)             (GCS / S3 /         instances —
-                                                                             Azure / MinIO)     same key layout
+```mermaid
+flowchart LR
+    subgraph SF[Salesforce Org]
+        CV[ContentVersion]
+        VI["Vastify_Interaction__x<br/>(live)"]
+        AI["ArchivedInteraction__x<br/>(archive)"]
+    end
+
+    subgraph MW[Middleware - Bun + TS]
+        H[Hono router]
+        RE[Routing engine]
+        OD[OData 4.0 adapter]
+        SQ[(SQLite index)]
+    end
+
+    subgraph OBJ[Object storage - same key layout]
+        GCS[(GCS)]
+        S3[(S3)]
+        AZ[(Azure)]
+        MIN[(MinIO/R2)]
+    end
+
+    CV -->|after-insert trigger<br/>POST /v1/files/upload| H
+    VI <-->|SF Connect OData| OD
+    AI -->|Scheduled Apex<br/>POST /v1/records/archive| H
+    H --> RE --> OBJ
+    OD <--> SQ
+    OD --> OBJ
 ```
 
 Every byte in object storage, regardless of cloud, lives at the same prefix:
@@ -42,6 +54,84 @@ tenants/{tenantId}/
 ```
 
 This uniform layout means a disaster-recovery reconciler can rebuild the entire SQLite index by listing and reading objects, and a cross-cloud migration is a one-backend-to-one-backend copy.
+
+### File upload sequence
+
+```mermaid
+sequenceDiagram
+    participant U as Salesforce User
+    participant SF as Salesforce
+    participant TR as ContentVersionTrigger
+    participant Q as FileOffloadQueueable
+    participant API as Vastify API
+    participant RE as Routing engine
+    participant OB as ObjectBackend
+    participant DB as SQLite
+
+    U->>SF: Upload PDF on Contact
+    SF->>TR: after insert ContentVersion
+    TR->>Q: enqueue (async — triggers can't callout)
+    Q->>SF: Read VersionData (base64)
+    Q->>API: POST /v1/files/upload {dataBase64, mime, size}
+    API->>RE: decide({kind=file, mime, size, tenant})
+    RE-->>API: {backendId, storageClass, ruleId}
+    API->>OB: put(tenants/{t}/files/{id}, body)
+    OB-->>API: {etag}
+    API->>OB: presignGet(key, 24h)
+    OB-->>API: presigned URL
+    API->>DB: INSERT files row
+    API-->>Q: {fileId, presignedUrl, backend, key}
+    Q->>SF: INSERT External_File__c with presigned URL
+    Q->>SF: DELETE original ContentDocument (reclaim storage)
+```
+
+### OData read sequence (Salesforce list view)
+
+```mermaid
+sequenceDiagram
+    participant SFC as Salesforce Connect
+    participant H as Hono /odata/v1
+    participant P as Parser
+    participant T as SQL translator
+    participant DB as SQLite (records_index)
+    participant OB as ObjectBackend
+
+    SFC->>H: GET /odata/v1/Interaction?$filter=Type eq 'Call'&$top=50
+    H->>P: parse $filter → AST
+    P-->>H: cmp(eq, Type, 'Call')
+    H->>T: AST + tenant + entity → SQL
+    T-->>H: SELECT pk, object_key, backend_id ...
+    H->>DB: query
+    DB-->>H: rows[]
+    par fetch up to 50 in parallel (bounded)
+        H->>OB: get(tenants/{t}/records/Interaction/{pk}.json)
+        OB-->>H: JSON body
+    end
+    H-->>SFC: OData 4.0 envelope { @odata.context, value: [...] }
+```
+
+### Record archive sequence
+
+```mermaid
+sequenceDiagram
+    participant CRON as Scheduled Apex
+    participant Q as InteractionArchiverQueueable
+    participant API as Vastify API
+    participant RE as Routing engine
+    participant OB as ObjectBackend
+    participant DB as SQLite
+
+    CRON->>Q: every N hours, enqueue 200-row batches
+    Q->>API: POST /v1/records/archive { records: [...] }
+    loop each record
+        API->>RE: decide({kind=record, ageDays, entity})
+        RE-->>API: {backendId, storageClass=ARCHIVE, ruleId}
+        API->>OB: put(tenants/{t}/records/Interaction/{pk}.json)
+        API->>DB: INSERT records_index (is_archived=1)
+    end
+    API-->>Q: { ok: true, count }
+    Q->>Q: DELETE Interaction__c rows in this batch
+```
 
 ## Why object storage for records, not a database?
 
@@ -188,21 +278,148 @@ Backend per-GB constants live in `api/src/stats/costs.ts`.
 
 ## What's in SQLite
 
-```sql
-tenants(id, name, api_key_hash, created_at)
-files(id, tenant_id, sf_content_version_id, original_name, backend_id,
-      storage_class, object_key, size_bytes, mime_type, created_at)
-records_index(tenant_id, entity, pk, backend_id, storage_class, object_key,
-              timestamp, channel, type, account_id, contact_id, subject,
-              is_archived, created_at)
-rules(id, tenant_id, priority, match_json, target_json, enabled, created_at)
-events(id, tenant_id, kind, payload_json, created_at)
-savings_snapshots(id, tenant_id, at, sf_data_bytes_avoided,
-                  sf_file_bytes_avoided, backend_bytes_by_class_json,
-                  usd_saved_monthly_estimate)
+```mermaid
+erDiagram
+    tenants ||--o{ files : owns
+    tenants ||--o{ records_index : owns
+    tenants ||--o{ rules : owns
+    tenants ||--o{ events : owns
+    tenants ||--o{ savings_snapshots : owns
+
+    tenants {
+        text id PK
+        text name
+        text api_key_hash
+        int  created_at
+    }
+    files {
+        text id PK
+        text tenant_id FK
+        text sf_content_version_id
+        text original_name
+        text backend_id
+        text storage_class
+        text object_key
+        int  size_bytes
+        text mime_type
+        int  created_at
+    }
+    records_index {
+        text tenant_id FK
+        text entity
+        text pk PK
+        text backend_id
+        text storage_class
+        text object_key
+        int  timestamp
+        text channel
+        text type
+        text account_id
+        text contact_id
+        text subject
+        int  is_archived
+        int  created_at
+    }
+    rules {
+        text id PK
+        text tenant_id FK
+        int  priority
+        text match_json
+        text target_json
+        int  enabled
+        int  created_at
+    }
+    events {
+        text id PK
+        text tenant_id FK
+        text kind
+        text payload_json
+        int  created_at
+    }
+    savings_snapshots {
+        text id PK
+        text tenant_id FK
+        int  at
+        int  sf_data_bytes_avoided
+        int  sf_file_bytes_avoided
+        text backend_bytes_by_class_json
+        real usd_saved_monthly_estimate
+    }
 ```
 
 Indexes on `(tenant_id, entity, timestamp DESC)`, `(tenant_id, is_archived, timestamp DESC)`, `(tenant_id, entity, account_id)`, etc. keep list-view queries sub-10ms up to ~100k records per tenant.
+
+### Index rebuild from object storage
+
+The SQLite index is a *cache*, not source of truth. If it's lost or corrupt, walk the bucket:
+
+```mermaid
+flowchart TD
+    A[Truncate records_index<br/>and files tables] --> B[List tenants/* prefixes]
+    B --> C{For each tenant}
+    C --> D[List tenants/t/files/*]
+    C --> E[List tenants/t/records/*]
+    D --> F[Read each blob's HEAD<br/>size, mime, storage class]
+    E --> G[Read each JSON body<br/>parse fields, extract index columns]
+    F --> H[INSERT files row]
+    G --> I[INSERT records_index row]
+    H --> J[Done — bucket is source of truth]
+    I --> J
+```
+
+## AI agents
+
+Three agents power the headline features. They share a single Anthropic client (`api/src/agents/shared/client.ts`) and a JSON-line logger.
+
+```mermaid
+flowchart LR
+    subgraph UI[Dashboard]
+        SP[SetupAgent.tsx]
+        SD[SnapshotDetail.tsx]
+    end
+
+    subgraph API[Bun API]
+        SR[/POST /v1/agents/setup/run<br/>SSE/]
+        DR[/POST /v1/agents/explain-diff<br/>JSON/]
+        RG[generate_starter_rules tool<br/>folded into setup/]
+    end
+
+    subgraph CL[Claude Opus 4.7]
+        ToolLoop[Agent SDK<br/>autonomous tool loop]
+        Parse[Structured output<br/>messages.parse]
+    end
+
+    SP -- EventSource --> SR --> ToolLoop
+    SD -- fetch --> DR --> Parse
+    ToolLoop --> RG
+    ToolLoop -.SSE frames<br/>tool_use_started/completed.-> SP
+    Parse -.zod-validated<br/>DiffExplanation.-> SD
+```
+
+The Setup Agent loop, in detail:
+
+```mermaid
+sequenceDiagram
+    participant UI as SetupAgent.tsx
+    participant API as /v1/agents/setup/run
+    participant CL as Claude Opus 4.7
+    participant T as Tools (zod-typed)
+    participant DB as SQLite
+
+    UI->>API: POST (EventSource)
+    API->>CL: messages.stream(system, tools, msgs)
+    loop until stop_reason != "tool_use"
+        CL-->>API: tool_use { name, input }
+        API-->>UI: SSE tool_use_started
+        API->>T: run(input) — REAL side-effect
+        T->>DB: INSERT/UPDATE row (e.g. routing rule)
+        T-->>API: result JSON
+        API-->>UI: SSE tool_use_completed
+        API->>CL: tool_result block
+    end
+    CL-->>API: assistant text (one-line confirmation)
+    API-->>UI: SSE done { totalToolCalls, totalElapsedMs }
+```
 
 ## What we'd change for v2
 

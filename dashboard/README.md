@@ -17,6 +17,7 @@ bun run dev        # :5173 — talks to API on :3099 via CORS
 | `bun run build` | Typecheck + production build |
 | `bun run preview` | Serve the production build |
 | `bun run typecheck` | `tsc --noEmit` |
+| `bun run test` | Run unit tests (formatters, etc.) via `bun:test` |
 
 ## Configuration
 

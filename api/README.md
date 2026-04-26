@@ -61,18 +61,36 @@ Set `VASTIFY_DEMO_PUBLIC_ODATA=true` to skip API-key enforcement on OData (demo 
 src/
 ├── server.ts          # Bun.serve + Hono wiring
 ├── config.ts          # env loader + backend configs
-├── auth/              # API-key middleware
-├── db/                # bun:sqlite client + schema.sql
-├── object/            # ObjectBackend interface + S3/GCS/Azure/MinIO impls
-├── routing/           # Rule engine + rules CRUD
-├── files/             # File upload/list/refresh
-├── records/           # OData-backed record CRUD
-├── odata/             # Parser + SQL translator + HTTP handler + $metadata
-├── stats/             # Cost math + SSE
-├── rules/             # Rules REST routes
-├── tenants/           # Tenant CRUD (minimal)
 ├── events.ts          # In-memory pub/sub for SSE fanout
-└── util/logger.ts     # JSON-line logger
+├── util/logger.ts     # JSON-line logger
+│
+├── agents/            # 🤖 Three Claude-powered agents — README + Mermaid
+├── auth/              # API-key + JWT middleware — README + Mermaid
+├── backup/            # CRM snapshot/diff/restore engine — README + Mermaid
+├── db/                # bun:sqlite client + schema.sql — README
+├── files/             # File upload/list/refresh — README + Mermaid
+├── object/            # ObjectBackend interface + 4 impls — README + Mermaid
+├── odata/             # OData 4.0 parser + SQL translator + handler — README + Mermaid
+├── records/           # OData-backed record CRUD — README + Mermaid
+├── routing/           # Rule engine + rules CRUD — README + Mermaid
+├── rules/             # Rules REST routes
+├── settings/          # Tenant settings REST routes
+├── stats/             # Cost math + SSE — README + Mermaid
+└── team/              # User/tenant member admin
 ```
 
-See [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) for the full design.
+Each subdirectory with a Mermaid badge has a `README.md` explaining its sequence and data flow:
+
+| Module | Diagram |
+|---|---|
+| [`agents/`](src/agents/) | Setup-Agent autonomous tool loop + Diff-Explainer structured-output flow |
+| [`auth/`](src/auth/) | API-key vs JWT layers |
+| [`backup/`](src/backup/) | Snapshot capture, diff build, restore execution sequences |
+| [`files/`](src/files/) | Upload sequence with routing decision |
+| [`object/`](src/object/) | Backend class hierarchy + key layout |
+| [`odata/`](src/odata/) | Read sequence + parser → SQL pipeline |
+| [`records/`](src/records/) | Write/read flows with bucket vs index split |
+| [`routing/`](src/routing/) | Decision algorithm flow |
+| [`stats/`](src/stats/) | Cost math pipeline |
+
+For the cross-module design (data flows between Salesforce → middleware → buckets, AI agent wiring, ER diagram), see [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md).
