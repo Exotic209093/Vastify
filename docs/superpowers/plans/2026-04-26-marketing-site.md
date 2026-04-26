@@ -135,11 +135,11 @@ Expected: Astro dev server starts on http://localhost:4321 (no pages yet — 404
 - [ ] **Step 7: Commit**
 
 ```
-git add marketing/package.json marketing/astro.config.mjs marketing/tsconfig.json marketing/.gitignore marketing/public/favicon.svg marketing/bun.lockb
+git add marketing/package.json marketing/astro.config.mjs marketing/tsconfig.json marketing/.gitignore marketing/public/favicon.svg marketing/bun.lock
 git commit -m "feat(marketing): scaffold Astro project"
 ```
 
-If `bun.lockb` is binary-encoded and noisy, use `bun install --save-text-lockfile` before committing or skip the lockfile from the commit and let Railway regenerate.
+Bun 1.2+ writes a text-format `bun.lock` (not binary `bun.lockb`). The repo root `.gitignore` ignores it globally, so use `git add -f marketing/bun.lock` if needed.
 
 ---
 
