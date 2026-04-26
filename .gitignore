@@ -47,6 +47,15 @@ api/public/
 
 # Git worktrees
 .worktrees/
+.worktrees
 
 # Playwright MCP cache (browser snapshots)
 .playwright-mcp/
+
+# Demo video / hyperframe generation artifacts (heavy, regenerable)
+docs/submission/hyperframes/stitched/
+docs/submission/hyperframes/v2/
+docs/submission/hyperframes/frame-*.html
+frame-*.png
+*.mp4
+*.wav
