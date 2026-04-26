@@ -3,7 +3,7 @@ import { serveStatic } from 'hono/bun';
 import { loadConfig } from './config.ts';
 import { getDb } from './db/client.ts';
 import { ensureBucketsExist } from './object/registry.ts';
-import { seedDemoData } from './scripts/seed.ts';
+import { seedDemoFixtures } from './scripts/seed-demo-data.ts';
 import { filesRoutes } from './files/routes.ts';
 import { recordsRoutes } from './records/routes.ts';
 import { odataRoutes } from './odata/handler.ts';
@@ -36,16 +36,22 @@ if (config.env === 'production') {
 }
 
 getDb();
-// Fire-and-forget — survive transient backend hiccups during boot.
-ensureBucketsExist().catch((e) => log.error('ensureBucketsExist failed', { err: (e as Error).message }));
 
-// Seed the demo tenant + default rules on every boot when the demo flag is on.
-// Required for ephemeral-DB deploys (Railway /tmp) where the SQLite file is
-// wiped on each redeploy. Gated by the demo flag so a real production deploy
-// without the flag never clobbers a real tenant's api_key_hash.
-if (process.env.VASTIFY_DEMO_PUBLIC_ODATA === 'true') {
-  seedDemoData().catch((e) => log.error('seedDemoData failed', { err: (e as Error).message }));
-}
+// Boot pipeline:
+//  1. Make sure each S3-compatible backend has its bucket. Required before
+//     the seed can write the diff plan body to object storage.
+//  2. In demo deployments, populate the canonical fixture set (tenant + rules
+//     + 80 files + 650 records + 5 snapshots + diff plan + diff body).
+// Both fire-and-forget so a transient MinIO blip doesn't crash boot. Errors
+// are logged; the server continues to serve requests with whatever DB state
+// is available.
+ensureBucketsExist()
+  .then(() => {
+    if (process.env.VASTIFY_DEMO_PUBLIC_ODATA === 'true') {
+      return seedDemoFixtures();
+    }
+  })
+  .catch((e) => log.error('boot seed pipeline failed', { err: (e as Error).message }));
 const app = new Hono();
 
 app.get('/health', (c) => c.json({ ok: true, service: 'vastify-api', version: '0.1.0' }));

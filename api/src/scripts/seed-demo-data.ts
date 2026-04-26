@@ -230,7 +230,19 @@ const ESCALATION_SUBJECTS = [
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-async function main() {
+/**
+ * Seed full demo content: tenant, rules, 80 files, 650 records, 5 snapshots,
+ * a diff plan with 47 changes (and the diff body in object storage so the AI
+ * Diff Explainer works).
+ *
+ * Idempotent — wipes the tenant's files / records / rules / snapshots / diff
+ * plans and re-inserts the canonical demo set. Safe to call on every server
+ * boot in a demo deployment.
+ *
+ * Gate the call on `VASTIFY_DEMO_PUBLIC_ODATA === 'true'` (see server.ts boot)
+ * so it never clobbers a real tenant in non-demo deploys.
+ */
+export async function seedDemoFixtures(): Promise<void> {
   const config = loadConfig();
   const db = getDb();
   const tenantId = config.demoTenantId;
@@ -646,7 +658,10 @@ function buildDemoDiffChanges(): DiffChange[] {
   return out;
 }
 
-main().catch((e) => {
-  log.error('demo seed failed', { err: (e as Error).message, stack: (e as Error).stack });
-  process.exit(1);
-});
+// CLI entry: `bun run api/src/scripts/seed-demo-data.ts`
+if (import.meta.main) {
+  seedDemoFixtures().catch((e: Error) => {
+    log.error('demo seed failed', { err: e.message, stack: e.stack });
+    process.exit(1);
+  });
+}
