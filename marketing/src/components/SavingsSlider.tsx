@@ -6,7 +6,7 @@ export default function SavingsSlider() {
   const sf = gb * 5;
   const vf = gb * 0.023;
   const saved = sf - vf;
-  const pct = Math.round((saved / Math.max(sf, 1)) * 100);
+  const pct = ((saved / Math.max(sf, 1)) * 100).toFixed(1);
   const min = 10, max = 5000;
   const pctPos = ((gb - min) / (max - min)) * 100;
   return (
