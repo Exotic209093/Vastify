@@ -1,0 +1,67 @@
+---
+import Base from '../layouts/Base.astro';
+import Hero from '../components/Hero';
+import SavingsSlider from '../components/SavingsSlider';
+import AIShowcase from '../components/AIShowcase';
+import CTAStrip from '../components/CTAStrip.astro';
+---
+<Base title="Vastify — CRM storage, offloaded.">
+  <Hero client:load />
+  <SavingsSlider client:visible />
+  <AIShowcase client:visible />
+
+  <section class="relative">
+    <div class="max-w-7xl mx-auto px-6 py-24">
+      <div class="max-w-3xl">
+        <div class="text-xs uppercase tracking-[0.18em] text-brand-300 font-medium">How it works</div>
+        <h2 class="mt-3 text-4xl md:text-5xl font-semibold tracking-[-0.02em] text-white">A thin layer between Salesforce and your bucket.</h2>
+        <p class="mt-4 text-slate-400 text-lg">Salesforce keeps the UX. Your data sits in your own S3, GCS, Azure, or MinIO — encrypted, audited, and queryable through Salesforce Connect.</p>
+      </div>
+      <div class="mt-10 grid md:grid-cols-3 gap-4">
+        <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
+          <div class="text-xs text-brand-300 uppercase tracking-wider">1 · Files</div>
+          <h3 class="mt-2 text-lg font-semibold text-white">ContentVersion offload</h3>
+          <p class="mt-2 text-sm text-slate-400">Files written to Salesforce sync to your bucket. The file UI stays the same.</p>
+        </div>
+        <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
+          <div class="text-xs text-brand-300 uppercase tracking-wider">2 · Records</div>
+          <h3 class="mt-2 text-lg font-semibold text-white">External Objects via OData</h3>
+          <p class="mt-2 text-sm text-slate-400">Cold records become Salesforce Connect external objects, queryable just like native ones.</p>
+        </div>
+        <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-6">
+          <div class="text-xs text-brand-300 uppercase tracking-wider">3 · Backups</div>
+          <h3 class="mt-2 text-lg font-semibold text-white">Snapshot + restore</h3>
+          <p class="mt-2 text-sm text-slate-400">Point-in-time snapshots, AI-summarised diffs, surgical or full restores.</p>
+        </div>
+      </div>
+      <div class="mt-8"><a href="/how-it-works" class="text-brand-300 hover:text-brand-100">See the architecture →</a></div>
+    </div>
+  </section>
+
+  <section class="relative border-t border-slate-900 bg-slate-950/60">
+    <div class="max-w-7xl mx-auto px-6 py-20 grid md:grid-cols-2 gap-10 items-center">
+      <div>
+        <div class="text-xs uppercase tracking-[0.18em] text-brand-300 font-medium">Pricing</div>
+        <h2 class="mt-3 text-4xl md:text-5xl font-semibold tracking-[-0.02em] text-white">Priced per terabyte, not per panic.</h2>
+        <p class="mt-4 text-slate-400 text-lg">Beta pricing starts well below Salesforce list. Bring your own bucket and pay your cloud at cost.</p>
+        <div class="mt-6"><a href="/pricing" class="rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium px-5 py-3 transition">See pricing →</a></div>
+      </div>
+      <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-8">
+        <div class="text-xs uppercase tracking-wider text-slate-400">Typical 2 TB org, files only</div>
+        <div class="mt-3 grid grid-cols-2 gap-4">
+          <div>
+            <div class="text-[10px] text-slate-500 uppercase tracking-wider">Salesforce</div>
+            <div class="font-mono text-3xl font-semibold text-rose-300">$122,880<span class="text-slate-500 text-sm">/yr</span></div>
+          </div>
+          <div>
+            <div class="text-[10px] text-slate-500 uppercase tracking-wider">Vastify on S3</div>
+            <div class="font-mono text-3xl font-semibold text-emerald-300">$565<span class="text-slate-500 text-sm">/yr</span></div>
+          </div>
+        </div>
+        <div class="mt-3 text-xs text-slate-500">Salesforce list: $5/GB/mo · S3 Standard: $0.023/GB/mo</div>
+      </div>
+    </div>
+  </section>
+
+  <CTAStrip />
+</Base>
