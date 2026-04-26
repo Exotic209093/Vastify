@@ -4,7 +4,19 @@ import { hashApiKey } from '../db/hash.ts';
 import { loadConfig } from '../config.ts';
 import { log } from '../util/logger.ts';
 
-async function main() {
+/**
+ * Seed the demo tenant + default rules. Idempotent:
+ * - Inserts the tenant row if missing, otherwise refreshes its api_key_hash
+ *   to match the current DEMO_TENANT_API_KEY env (lets you rotate the key
+ *   without manually fixing the DB).
+ * - Only inserts default rules if the tenant has none.
+ *
+ * Safe to call on every server boot in demo deployments where DB persistence
+ * is ephemeral. In non-demo deployments, gate the call on
+ * `VASTIFY_DEMO_PUBLIC_ODATA === 'true'` (see server.ts startup) so we don't
+ * accidentally clobber a real tenant's api_key_hash.
+ */
+export async function seedDemoData(): Promise<void> {
   const config = loadConfig();
   const db = getDb();
   const now = Date.now();
@@ -74,7 +86,10 @@ async function main() {
   log.info('seed complete');
 }
 
-main().catch((e) => {
-  log.error('seed failed', { err: e.message, stack: e.stack });
-  process.exit(1);
-});
+// Allow `bun run api/src/scripts/seed.ts` for manual seeding outside the server.
+if (import.meta.main) {
+  seedDemoData().catch((e: Error) => {
+    log.error('seed failed', { err: e.message, stack: e.stack });
+    process.exit(1);
+  });
+}
