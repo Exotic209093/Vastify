@@ -12,6 +12,7 @@ Salesforce charges around **$250 per gigabyte per year** to store your data. Vas
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react)](https://react.dev)
 [![Salesforce](https://img.shields.io/badge/Salesforce-Apex%20%2B%20OData-00A1E0?style=flat-square&logo=salesforce&logoColor=white)](https://developer.salesforce.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+[![LinkedIn](https://img.shields.io/badge/Built%20by-James%20Collard-0A66C2?style=flat-square&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/james-collard-6b925a313/)
 
 [**📺 Watch the 3-minute demo**](https://youtu.be/_OcVUofbFTM) &middot; [**🚀 Quickstart**](#quickstart) &middot; [**🤖 The AI agents**](#the-three-ai-agents) &middot; [**🏗 Architecture**](#architecture)
 
@@ -426,6 +427,8 @@ MIT — see [`LICENSE`](LICENSE).
 
 <div align="center">
 
-**Vastify** &middot; CRM storage and backup, with Claude inside &middot; Built for the [Cerebral Valley × Anthropic 4.7 hackathon](https://cerebralvalley.ai/e/built-with-4-7-hackathon)
+**Vastify** &middot; CRM storage and backup, with Claude inside
+
+Built by [**James Collard**](https://www.linkedin.com/in/james-collard-6b925a313/) for the [Cerebral Valley × Anthropic 4.7 hackathon](https://cerebralvalley.ai/e/built-with-4-7-hackathon)
 
 </div>
