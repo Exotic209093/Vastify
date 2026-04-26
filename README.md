@@ -13,7 +13,7 @@ Salesforce charges around **$250 per gigabyte per year** to store your data. Vas
 [![Salesforce](https://img.shields.io/badge/Salesforce-Apex%20%2B%20OData-00A1E0?style=flat-square&logo=salesforce&logoColor=white)](https://developer.salesforce.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
-[**📺 Watch the 3-minute demo**](docs/submission/README.md) &middot; [**🚀 Quickstart**](#quickstart) &middot; [**🤖 The AI agents**](#the-three-ai-agents) &middot; [**🏗 Architecture**](#architecture)
+[**📺 Watch the 3-minute demo**](https://youtu.be/_OcVUofbFTM) &middot; [**🚀 Quickstart**](#quickstart) &middot; [**🤖 The AI agents**](#the-three-ai-agents) &middot; [**🏗 Architecture**](#architecture)
 
 ![Vastify dashboard](docs/screenshots/dashboard.png)
 
@@ -209,7 +209,7 @@ A SQLite metadata DB (`bun:sqlite`) acts as a rebuildable index of filterable fi
 6. **Hit the Diff Explainer** on a backup snapshot → Claude reads the change-set, returns per-object verdicts, you click *Restore the safe items*.
 7. **The dashboard's net-savings ticker** updates in real time over SSE.
 
-The full demo is in **[the 3-minute video](docs/submission/README.md)**.
+The full demo is in **[the 3-minute video on YouTube](https://youtu.be/_OcVUofbFTM)**.
 
 ---
 

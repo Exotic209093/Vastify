@@ -4,7 +4,7 @@ This folder contains everything submitted for the **[Built with Claude 4.7](http
 
 ## 📺 Demo video
 
-> **Watch on YouTube:** _link goes here once published_
+> **Watch on YouTube:** https://youtu.be/_OcVUofbFTM
 
 The demo is a 3-minute walkthrough that covers:
 
@@ -45,5 +45,5 @@ For the cerebralvalley.ai submission form:
 - **Problem statement** — Build for what you know
 - **Project description** — see [the README](../../README.md)
 - **GitHub repo** — https://github.com/Exotic209093/Vastify
-- **Demo video** — _YouTube link_
+- **Demo video** — https://youtu.be/_OcVUofbFTM
 - **Used Claude Managed Agents?** — Three production agents built on the Anthropic Agent SDK (Setup Agent, Diff Explainer, Rule Generator). See [the AI agents section of the README](../../README.md#the-three-ai-agents).
